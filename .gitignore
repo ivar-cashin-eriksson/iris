@@ -1,0 +1,8 @@
+# Checkpoints for model training
+checkpoints/
+
+# Large downloaded images and datasets
+images/
+
+# Results that can be regenerated
+results/

@@ -1,0 +1,5 @@
+autodistill
+autodistill-grounded-sam-2
+opencv-python
+torch
+groundingdino-py
