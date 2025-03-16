@@ -1,3 +1,11 @@
+# Python cache files
+__pycache__/
+*.py[cod]
+
+# Virtual environment
+venv/
+.python-version
+
 # Checkpoints for model training
 checkpoints/
 
