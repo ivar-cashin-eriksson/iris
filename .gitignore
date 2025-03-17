@@ -11,6 +11,7 @@ checkpoints/
 
 # Large downloaded images and datasets
 images/
+data/
 
 # Results that can be regenerated
 results/
