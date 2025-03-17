@@ -1,16 +1,19 @@
+import json
 from pathlib import Path
+from urllib.parse import urlparse
 
 import requests
 from bs4 import BeautifulSoup
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.chrome.service import Service
+from selenium.webdriver.chrome.webdriver import WebDriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.ui import WebDriverWait
 
 
-class ImageScraper:
+class WebShopScraper:
     """
     A web scraper that utilizes Selenium and BeautifulSoup to extract 
     image URLs from web pages and download images to a specified directory.
@@ -25,27 +28,34 @@ class ImageScraper:
     - `download_image_from_url(img_url, directory_path)`: Downloads and saves an image from the given URL.
     """
 
-    def __init__(self) -> None:
+    def __init__(self, urls: list[str], filters: dict[str, str] | None = None, save_dir: str = "data") -> None:
         """
-        Initializes the `ImageScraper` class.
+        Initializes the WebShopScraper.
 
-        This constructor:
-        - Sets up a Selenium WebDriver instance with headless Chrome.
-        - Configures options to run Chrome in a lightweight mode.
-        - Uses a specified ChromeDriver path to manage browser automation.
-
-        This setup enables the class to load and parse JavaScript-heavy web pages efficiently.
+        Args:
+            urls (list[str]): List of product page URLs to scrape.
+            filters (dict[str, str] | None): CSS selectors for extracting images & metadata.
+                                            Defaults to {"images": "img", "title": "h1", "price": ".price"}.
+            save_dir (str): Directory to store downloaded images and metadata.
 
         Attributes:
-            driver (WebDriver): The Selenium Chrome WebDriver instance used for web scraping.
+            urls (list[str]): The list of product URLs to be scraped.
+            filters (dict[str, str]): The CSS selectors used to extract data from web pages.
+            save_dir (Path): The directory where images and metadata will be stored.
+            driver (WebDriver): The Selenium WebDriver instance for loading web pages.
         """
+        self.urls = urls
+        self.filters = filters if filters else {"images": "img", "title": "h1", "price": ".price"}
+        self.save_dir = Path(save_dir)
+
+        # Set up Selenium WebDriver
         chrome_options = Options()
         chrome_options.add_argument("--headless")
         chrome_options.add_argument("--no-sandbox")
         chrome_options.add_argument("--disable-dev-shm-usage")
-
+        
         service = Service("/usr/local/bin/chromedriver")
-        self.driver = webdriver.Chrome(service=service, options=chrome_options)
+        self.driver: WebDriver = webdriver.Chrome(service=service, options=chrome_options)
 
 
     def __load_page(self, url: str) -> BeautifulSoup | None:
@@ -76,83 +86,140 @@ class ImageScraper:
             return None
 
 
-    def extract_html_image_urls(self, url: str, filters: list[str] = []) -> list[str]:
+    def extract_images(self, soup: BeautifulSoup) -> list[str]:
         """
-        Extracts image URLs from HTML-rendered pages (without JavaScript).
+        Extracts image URLs from the given BeautifulSoup object.
 
         Args:
-            page_url (str): URL of the page to extract images from.
-            filters (list[str]): CSS selectors to filter images. Defaults to ['img'].
+            soup (BeautifulSoup): Parsed HTML page.
 
         Returns:
-            list[str]: A list of extracted image URLs.
+            List[str]: A list of image URLs.
         """
-        if not filters:
-            filters = ['img']
+        image_urls = []
+        elements = soup.select(self.filters["images"])  # Select based on provided filter
 
-        soup = self.__load_page(url)
+        for element in elements:
+            if element.name == "img":
+                # Directly an <img>, extract src
+                src = element.get("src")
+                if src:
+                    image_urls.append(src)
+            else:
+                # It's a container (e.g., <div>), find all <img> inside
+                img_elements = element.find_all("img")
+                for img in img_elements:
+                    src = img.get("src")
+                    if src:
+                        image_urls.append(src)
 
-        image_urls = set()
+        return image_urls
 
-        for selector in filters:
-            elements = soup.select(selector)
-            for element in elements:
-                if element.name == 'img':
-                    img_url = element.get('src')
-                    if img_url:
-                        image_urls.add(img_url)
-                else:
-                    imgs = element.find_all('img')
-                    for img in imgs:
-                        img_url = img.get('src')
-                        if img_url:
-                            image_urls.add(img_url)
-
-        return list(image_urls)
-
-
-    def download_image_from_url(self, img_url: str, directory_path: Path) -> Path | None:
+    def extract_metadata(self, soup: BeautifulSoup) -> dict[str, str]:
         """
-        Downloads an image from a given URL and saves it to the specified 
-        directory.
-        
-        Parameters:
-            img_url (str): The URL of the image to be downloaded.
-            directory (Path): The directory where the image will be saved.
-        
+        Extracts metadata (title, price, etc.) from the given BeautifulSoup object.
+
+        Args:
+            soup (BeautifulSoup): Parsed HTML page.
+
         Returns:
-            Path: The file path where the image is saved if successful.
-            None: If the download fails.
+            Dict[str, str]: Extracted metadata.
         """
+        metadata = {}
+        metadata["title"] = soup.select_one(self.filters["title"]).text.strip() if soup.select_one(self.filters["title"]) else "Unknown"
+        metadata["price"] = soup.select_one(self.filters["price"]).text.strip() if soup.select_one(self.filters["price"]) else "N/A"
 
-        directory_path.mkdir(parents=True, exist_ok=True)
+        return metadata
 
-        img_name = Path(img_url).name
-        save_path = directory_path / img_name
+    def download_image(self, img_url: str, product_id: str) -> Path | None:
+        """
+        Downloads an image and saves it to the structured directory.
+
+        Args:
+            img_url (str): The image URL.
+            product_id (str): The unique identifier for the product.
+
+        Returns:
+            Optional[Path]: Path to the saved image or None if the download fails.
+        """
+        self.save_dir.mkdir(parents=True, exist_ok=True)
+
+        # Parse the URL to remove query parameters
+        parsed_url = urlparse(img_url)
+        clean_filename = Path(parsed_url.path).name  # Extracts the actual filename
+
+        # Ensure the filename has an extension
+        if "." not in clean_filename:
+            clean_filename += ".jpg"  # Default to .jpg if missing
+
+        img_name = f"{product_id}_{clean_filename}"
+        save_path = self.save_dir / img_name
 
         try:
-            response = requests.get(img_url, stream=True, timeout=100)  # TODO: Move to config
+            response = requests.get(img_url, stream=True, timeout=10)
             response.raise_for_status()
 
             with open(save_path, "wb") as file:
-                for chunk in response.iter_content(1024):  # TODO: Move to config file
+                for chunk in response.iter_content(1024):
                     file.write(chunk)
 
-            print(f"Downloaded: {save_path.name}")
             return save_path
         except requests.exceptions.RequestException as e:
             print(f"Failed to download {img_url}: {e}")
             return None
+        
+
+    def save_metadata(self, metadata: dict[str, str], product_id: str) -> None:
+        """
+        Saves metadata in JSON format.
+
+        Args:
+            metadata (dict[str, str]): Extracted metadata.
+            product_id (str): Unique identifier for the product.
+        """
+        metadata_path = self.save_dir / f"{product_id}.json"
+
+        with open(metadata_path, "w") as file:
+            json.dump(metadata, file, indent=4)
+
+
+    def scrape(self) -> None:
+        """
+        Main method to scrape all product pages, extract images & metadata,
+        and save them to disk.
+        """
+        for url in self.urls:
+            print(f"Scraping: {url}")
+            soup = self.__load_page(url)
+
+            if not soup:
+                continue
+
+            metadata = self.extract_metadata(soup)
+            product_id = metadata["title"].replace(" ", "_").lower()[:20]  # Basic product ID
+            images = self.extract_images(soup)
+
+            for img_url in images:
+                self.download_image(img_url, product_id)
+
+            self.save_metadata(metadata, product_id)
+
+            print(f"Completed: {metadata['title']}")
+
 
 
 def main():
-    scraper = ImageScraper()
-    page_url = "https://pasnormalstudios.com/dk/products/off-race-logo-hoodie"
-    filters = ['body > main > div > div > div:nth-child(1) > section.block-wrapper.page-offset-notification.relative.bg-\[\#f1f1f1\].lg\:h-screen.lg\:pt-0 > div.relative.transition-all.lg\:h-screen > div.relative.hidden.lg\:block.h-full > div > div.swiper-wrapper']
-    img_urls  = scraper.extract_html_image_urls(page_url, filters)
-
-    for url in img_urls:
-        scraper.download_image_from_url(url, "test/")
+    urls = [
+        "https://pasnormalstudios.com/dk/products/off-race-logo-hoodie",
+        "https://pasnormalstudios.com/dk/products/off-race-cotton-twill-pants-limestone"
+    ]
+    filters = {
+        "images": "body > main > div > div > div:nth-child(1) > section.block-wrapper.page-offset-notification.relative.bg-\[\#f1f1f1\].lg\:h-screen.lg\:pt-0 > div.relative.transition-all.lg\:h-screen > div.relative.hidden.lg\:block.h-full", 
+        "title": "body > main > div > div > div:nth-child(1) > section.block-wrapper.space-y-5.lg\:hidden > div > div > div.text-xl.font-medium.leading-5", 
+        "price": "body > main > div > div > div:nth-child(1) > section.block-wrapper.space-y-5.lg\:hidden > div > div > div.hidden.md\:block > div > div > button > div > div"
+    }
+    scraper = WebShopScraper(urls, filters)
+    scraper.scrape()
 
 
 if __name__ == "__main__":
