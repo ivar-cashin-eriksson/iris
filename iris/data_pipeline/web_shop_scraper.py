@@ -35,7 +35,7 @@ class WebShopScraper:
         Args:
             urls (list[str]): List of product page URLs to scrape.
             filters (dict[str, str] | None): CSS selectors for extracting images & metadata.
-                                            Defaults to {"images": "img", "title": "h1", "price": ".price"}.
+                                            Defaults to {"images": "img"}.
             save_dir (str): Directory to store downloaded images and metadata.
 
         Attributes:
@@ -45,7 +45,7 @@ class WebShopScraper:
             driver (WebDriver): The Selenium WebDriver instance for loading web pages.
         """
         self.urls = urls
-        self.filters = filters if filters else {"images": "img", "title": "h1", "price": ".price"}
+        self.filters = filters if filters else {"images": "img"}
         self.save_dir = Path(save_dir)
 
         # Set up Selenium WebDriver
@@ -56,7 +56,6 @@ class WebShopScraper:
         
         service = Service("/usr/local/bin/chromedriver")
         self.driver: WebDriver = webdriver.Chrome(service=service, options=chrome_options)
-
 
     def __load_page(self, url: str) -> BeautifulSoup | None:
         """
@@ -85,8 +84,7 @@ class WebShopScraper:
             print(f"Error loading {url}: {e}")
             return None
 
-
-    def extract_images(self, soup: BeautifulSoup) -> list[str]:
+    def __extract_images(self, soup: BeautifulSoup) -> list[str]:
         """
         Extracts image URLs from the given BeautifulSoup object.
 
@@ -115,7 +113,7 @@ class WebShopScraper:
 
         return image_urls
 
-    def extract_metadata(self, soup: BeautifulSoup) -> dict[str, str]:
+    def __extract_metadata(self, soup: BeautifulSoup) -> dict[str, str]:
         """
         Extracts metadata (title, price, etc.) from the given BeautifulSoup object.
 
@@ -126,12 +124,14 @@ class WebShopScraper:
             Dict[str, str]: Extracted metadata.
         """
         metadata = {}
-        metadata["title"] = soup.select_one(self.filters["title"]).text.strip() if soup.select_one(self.filters["title"]) else "Unknown"
-        metadata["price"] = soup.select_one(self.filters["price"]).text.strip() if soup.select_one(self.filters["price"]) else "N/A"
+        for key, selector in self.filters.items():
+            if key == "images":
+                continue
+            metadata[key] = soup.select_one(selector).text.strip() if soup.select_one(selector) else "NOT_FOUND"
 
         return metadata
 
-    def download_image(self, img_url: str, product_id: str) -> Path | None:
+    def __download_image(self, img_url: str, product_id: str) -> Path | None:
         """
         Downloads an image and saves it to the structured directory.
 
@@ -168,8 +168,7 @@ class WebShopScraper:
             print(f"Failed to download {img_url}: {e}")
             return None
         
-
-    def save_metadata(self, metadata: dict[str, str], product_id: str) -> None:
+    def __save_metadata(self, metadata: dict[str, str], product_id: str) -> None:
         """
         Saves metadata in JSON format.
 
@@ -181,7 +180,6 @@ class WebShopScraper:
 
         with open(metadata_path, "w") as file:
             json.dump(metadata, file, indent=4)
-
 
     def scrape(self) -> None:
         """
@@ -195,14 +193,14 @@ class WebShopScraper:
             if not soup:
                 continue
 
-            metadata = self.extract_metadata(soup)
+            metadata = self.__extract_metadata(soup)
             product_id = metadata["title"].replace(" ", "_").lower()[:20]  # Basic product ID
-            images = self.extract_images(soup)
+            images = self.__extract_images(soup)
 
             for img_url in images:
-                self.download_image(img_url, product_id)
+                self.__download_image(img_url, product_id)
 
-            self.save_metadata(metadata, product_id)
+            self.__save_metadata(metadata, product_id)
 
             print(f"Completed: {metadata['title']}")
 
@@ -216,7 +214,12 @@ def main():
     filters = {
         "images": "body > main > div > div > div:nth-child(1) > section.block-wrapper.page-offset-notification.relative.bg-\[\#f1f1f1\].lg\:h-screen.lg\:pt-0 > div.relative.transition-all.lg\:h-screen > div.relative.hidden.lg\:block.h-full", 
         "title": "body > main > div > div > div:nth-child(1) > section.block-wrapper.space-y-5.lg\:hidden > div > div > div.text-xl.font-medium.leading-5", 
-        "price": "body > main > div > div > div:nth-child(1) > section.block-wrapper.space-y-5.lg\:hidden > div > div > div.hidden.md\:block > div > div > button > div > div"
+        "price": "body > main > div > div > div:nth-child(1) > section.block-wrapper.space-y-5.lg\:hidden > div > div > div.hidden.md\:block > div > div > button > div > div",
+        "color": "body > main > div > div > div:nth-child(1) > section.block-wrapper.space-y-5.lg\:hidden > div > div > button > div > div.flex.items-center.gap-1 > span",
+        "num_colorways": "body > main > div > div > div:nth-child(1) > section.block-wrapper.space-y-5.lg\:hidden > div > div > button > div > div.text-\[9px\].uppercase.opacity-70 > span:nth-child(1)",
+        "description": "body > main > div > div > div:nth-child(1) > section.block-wrapper.space-y-5.lg\:hidden > div > div > div:nth-child(4) > div > div > p",
+        "made_in": "#radix-\:r7d\: > div.flex.h-full.w-full.flex-col.border-t.px-5.pt-6.md\:px-8 > div.py-12.md\:py-10 > div.flex.w-full.items-center.justify-start.border-t.border-gray-light.py-6 > div > div.flex.w-56.text-xl.font-medium.md\:text-2xl > div",
+        "product_details": "#radix-\:r7d\: > div.flex.h-full.w-full.flex-col.border-t.px-5.pt-6.md\:px-8 > div.py-12.md\:py-10 > div.flex.w-full.items-center.justify-start.border-y.border-gray-light.py-6 > div > div.flex.w-56.text-xs.leading-4",
     }
     scraper = WebShopScraper(urls, filters)
     scraper.scrape()
