@@ -11,6 +11,8 @@ from selenium.webdriver.chrome.webdriver import WebDriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.ui import WebDriverWait
+from pymongo import MongoClient
+import base64
 
 
 class WebShopScraper:
@@ -56,6 +58,21 @@ class WebShopScraper:
         
         service = Service("/usr/local/bin/chromedriver")
         self.driver: WebDriver = webdriver.Chrome(service=service, options=chrome_options)
+
+        # MongoDB Atlas connection string
+        connection_string = "mongodb+srv://test:test@iris-cluster.andes.mongodb.net/?retryWrites=true&w=majority&appName=iris-cluster"
+        
+        # Initialize MongoDB connection
+        self.client = MongoClient(connection_string)
+        self.db = self.client['iris']  # or whatever database name you chose
+        self.images = self.db['images']
+
+    def __del__(self):
+        """
+        Cleanup: Close MongoDB connection
+        """
+        if hasattr(self, 'client'):
+            self.client.close()
 
     def __load_page(self, url: str) -> BeautifulSoup | None:
         """
@@ -131,13 +148,54 @@ class WebShopScraper:
 
         return metadata
 
-    def __download_image(self, img_url: str, product_id: str) -> Path | None:
+    def __save_to_mongodb(self, img_url: str, image_id: str) -> None:
+        """
+        Downloads image and saves it directly to MongoDB.
+
+        Args:
+            img_url (str): URL of the image to download
+            image_id (str): Unique identifier for the product
+        """
+        try:
+            # Download image directly to memory
+            response = requests.get(img_url, stream=True, timeout=10)
+            response.raise_for_status()
+            
+            # Get image data and convert to base64
+            image_data = base64.b64encode(response.content).decode('utf-8')
+            
+            # Get filename from URL
+            parsed_url = urlparse(img_url)
+            filename = Path(parsed_url.path).name
+            if ".jpg" not in filename:
+                filename += ".jpg"
+            
+            # Prepare the document
+            product_doc = {
+                'image_id': image_id,
+                'image': image_data,
+                'image_filename': filename,
+                'original_url': img_url
+            }
+
+            # Insert or update the document
+            self.images.update_one(
+                {'image_id': image_id},
+                {'$set': product_doc},
+                upsert=True
+            )
+
+        except Exception as e:
+            print(f"Error saving to MongoDB: {e}")
+
+
+    def __download_image(self, img_url: str, image_id: str) -> Path | None:
         """
         Downloads an image and saves it to the structured directory.
 
         Args:
             img_url (str): The image URL.
-            product_id (str): The unique identifier for the product.
+            image_id (str): The unique identifier for the product.
 
         Returns:
             Optional[Path]: Path to the saved image or None if the download fails.
@@ -152,7 +210,7 @@ class WebShopScraper:
         if "." not in clean_filename:
             clean_filename += ".jpg"  # Default to .jpg if missing
 
-        img_name = f"{product_id}_{clean_filename}"
+        img_name = f"{image_id}_{clean_filename}"
         save_path = self.save_dir / img_name
 
         try:
@@ -168,15 +226,15 @@ class WebShopScraper:
             print(f"Failed to download {img_url}: {e}")
             return None
         
-    def __save_metadata(self, metadata: dict[str, str], product_id: str) -> None:
+    def __save_metadata(self, metadata: dict[str, str], image_id: str) -> None:
         """
         Saves metadata in JSON format.
 
         Args:
             metadata (dict[str, str]): Extracted metadata.
-            product_id (str): Unique identifier for the product.
+            image_id (str): Unique identifier for the product.
         """
-        metadata_path = self.save_dir / f"{product_id}.json"
+        metadata_path = self.save_dir / f"{image_id}.json"
 
         with open(metadata_path, "w") as file:
             json.dump(metadata, file, indent=4)
@@ -194,13 +252,13 @@ class WebShopScraper:
                 continue
 
             metadata = self.__extract_metadata(soup)
-            product_id = metadata["title"].replace(" ", "_").lower()[:20]  # Basic product ID
+            image_id = metadata["title"].replace(" ", "_").lower()[:20]  # Basic product ID
             images = self.__extract_images(soup)
 
             for img_url in images:
-                self.__download_image(img_url, product_id)
+                self.__save_to_mongodb(img_url, image_id)
 
-            self.__save_metadata(metadata, product_id)
+            self.__save_metadata(metadata, image_id)
 
             print(f"Completed: {metadata['title']}")
 
