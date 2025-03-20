@@ -3,3 +3,6 @@ autodistill-grounded-sam-2
 opencv-python
 torch
 groundingdino-py
+selenium
+bs4
+requests

@@ -3,11 +3,14 @@ __pycache__/
 *.py[cod]
 
 # Virtual environment
-venv/
+.venv/
 .python-version
 
 # Checkpoints for model training
 checkpoints/
+
+# Webdriver
+chromedriver.exe
 
 # Large downloaded images and datasets
 images/
