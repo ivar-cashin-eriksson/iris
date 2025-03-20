@@ -1,0 +1,171 @@
+from pathlib import Path
+from urllib.parse import urlparse
+import requests
+from bs4 import BeautifulSoup
+from mongodb_manager import MongoDBManager
+from utils import get_url_hash
+
+
+class ImageHandler:
+    """
+    A class for handling image-related operations including downloading,
+    storage, and metadata management.
+
+    Features:
+    - Image URL extraction from HTML
+    - Image downloading and local storage
+    - Image metadata management in MongoDB
+    - Product-image relationship management
+    """
+
+    def __init__(self, mongo_manager: MongoDBManager, save_dir: str = "data") -> None:
+        """
+        Initializes the ImageHandler.
+
+        Args:
+            save_dir (str): Directory to store downloaded images.
+            mongo_manager (MongoDBManager | None): MongoDB manager instance.
+                                                 If None, creates a new connection.
+
+        Attributes:
+            save_dir (Path): The directory where images will be stored.
+            images_dir (Path): The directory for downloaded images.
+            mongo_manager (MongoDBManager): MongoDB manager instance.
+        """
+        self.save_dir = Path(save_dir)
+        self.images_dir = self.save_dir / "images"
+        self.images_dir.mkdir(parents=True, exist_ok=True)
+        self.mongo_manager = mongo_manager
+
+    def extract_image_urls(self, soup: BeautifulSoup, image_selector: str) -> list[str]:
+        """
+        Extracts image URLs from the given BeautifulSoup object.
+
+        Args:
+            soup (BeautifulSoup): Parsed HTML page.
+            image_selector (str): CSS selector for finding image elements.
+
+        Returns:
+            List[str]: A list of image URLs.
+        """
+        image_urls = []
+        elements = soup.select(image_selector)
+
+        for element in elements:
+            if element.name == "img":
+                # Directly an <img>, extract src
+                src = element.get("src")
+                if src:
+                    image_urls.append(src)
+            else:
+                # It's a container (e.g., <div>), find all <img> inside
+                img_elements = element.find_all("img")
+                for img in img_elements:
+                    src = img.get("src")
+                    if src:
+                        image_urls.append(src)
+
+        return image_urls
+
+    def save_image_metadata(self, img_url: str, image_hash: str, local_path: Path, product_hash: str) -> None:
+        """
+        Saves image metadata to MongoDB.
+
+        Args:
+            img_url (str): Original URL of the image
+            image_hash (str): Hash of the image URL
+            local_path (Path): Local path where the image is stored
+            product_hash (str): Hash of the product where the image was found
+        """
+        try:
+            # Prepare the document
+            image_doc = {
+                'image_hash': image_hash,
+                'local_path': str(local_path),
+                'original_url': img_url,
+                'source_product': product_hash
+            }
+            
+            # Add timestamp and save to MongoDB
+            image_doc = self.mongo_manager.add_timestamp(image_doc)
+            self.mongo_manager.update_one(
+                'image_metadata',
+                {'image_hash': image_hash},
+                image_doc
+            )
+
+        except Exception as e:
+            print(f"Error saving to MongoDB: {e}")
+
+    def download_image(self, img_url: str, image_hash: str) -> Path | None:
+        """
+        Downloads an image and saves it to the structured directory.
+
+        Args:
+            img_url (str): The image URL.
+            image_hash (str): Hash of the image URL.
+
+        Returns:
+            Optional[Path]: Path to the saved image or None if the download fails.
+        """
+        self.images_dir.mkdir(parents=True, exist_ok=True)
+
+        # Parse the URL to remove query parameters
+        parsed_url = urlparse(img_url)
+        clean_filename = Path(parsed_url.path).name  # Extracts the actual filename
+
+        # Ensure the filename has an extension
+        if "." not in clean_filename:
+            clean_filename += ".jpg"  # Default to .jpg if missing
+
+        img_name = f"{image_hash}_{clean_filename}"
+        save_path = self.images_dir / img_name
+
+        try:
+            response = requests.get(img_url, stream=True, timeout=10)
+            response.raise_for_status()
+
+            with open(save_path, "wb") as file:
+                for chunk in response.iter_content(1024):
+                    file.write(chunk)
+
+            return save_path
+        except requests.exceptions.RequestException as e:
+            print(f"Failed to download {img_url}: {e}")
+            return None
+
+    def process_images(self, soup: BeautifulSoup, image_selector: str, product_hash: str) -> list[str]:
+        """
+        Process all images from a webpage: extract, download, and save metadata.
+
+        Args:
+            soup (BeautifulSoup): Parsed HTML page.
+            image_selector (str): CSS selector for finding image elements.
+            product_hash (str): Hash of the product URL where images were found.
+
+        Returns:
+            List[str]: List of image hashes that were processed.
+        """
+        image_urls = self.extract_image_urls(soup, image_selector)
+        processed_image_hashes = []
+
+        for img_url in image_urls:
+            # Generate a deterministic hash for the image URL
+            image_hash = get_url_hash(img_url)
+            
+            # Check if we already have this image in MongoDB
+            existing_image = self.mongo_manager.find_one('image_metadata', {'image_hash': image_hash})
+            
+            if existing_image:
+                print(f"Image already exists in database: {img_url}")
+                processed_image_hashes.append(image_hash)
+                continue
+            
+            # First download the image locally
+            local_path = self.download_image(img_url, image_hash)
+            if local_path:
+                # Then save the reference to MongoDB
+                self.save_image_metadata(img_url, image_hash, local_path, product_hash)
+                processed_image_hashes.append(image_hash)
+
+        return processed_image_hashes 
