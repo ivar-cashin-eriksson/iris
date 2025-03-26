@@ -1,0 +1,8 @@
+# MongoDB connection configuration
+connection_string = "mongodb+srv://test:test@iris-cluster.andes.mongodb.net/?retryWrites=true&w=majority&appName=iris-cluster"
+database = "iris"
+
+# Collections
+image_metadata_collection = "image_metadata"
+products_collection = "products"
+scraping_progress_collection = "scraping_progress"
