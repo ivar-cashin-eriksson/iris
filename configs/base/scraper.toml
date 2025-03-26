@@ -1,0 +1,5 @@
+# Base scraper configuration
+rate_limit = 1.0
+max_retries = 3
+timeout = 30
+user_agent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
