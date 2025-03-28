@@ -3,3 +3,8 @@ rate_limit = 1.0
 max_retries = 3
 timeout = 30
 user_agent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+wait_for_selector = "img"
+pagination_link = "a[rel='next']"
+product_link = "a[href*='/products/']"
+category_link = "a[href*='/collections/']"
+

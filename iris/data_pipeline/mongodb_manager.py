@@ -1,8 +1,11 @@
+import datetime
 from typing import Any
+
 from pymongo import MongoClient
 from pymongo.collection import Collection
 from pymongo.database import Database
-import datetime
+
+from iris.config.config_manager import MongoDBConfig
 
 
 class MongoDBManager:
@@ -17,28 +20,20 @@ class MongoDBManager:
     - Context manager support
     """
 
-    def __init__(
-        self,
-        connection_string: str,
-        database_name: str = "iris",
-        tls_allow_invalid_certificates: bool = True
-    ) -> None:
+    def __init__(self, mongodb_config: MongoDBConfig) -> None:
         """
         Initialize the MongoDB manager.
 
         Args:
-            connection_string (str): MongoDB connection string
-            database_name (str): Name of the database to use
+            config_manager (ConfigManager): Configuration manager instance
             tls_allow_invalid_certificates (bool): Whether to allow invalid certificates
         """
-        self.connection_string = connection_string
-        self.database_name = database_name
-        self.tls_allow_invalid_certificates = tls_allow_invalid_certificates
+        self.mongodb_config = mongodb_config
         self._client: MongoClient | None = None
         self._db: Database | None = None
         self._collections: dict[str, Collection] = {}
 
-    def __enter__(self) -> 'MongoDBManager':
+    def __enter__(self) -> "MongoDBManager":
         """Context manager entry."""
         self.connect()
         return self
@@ -51,10 +46,10 @@ class MongoDBManager:
         """Establish connection to MongoDB."""
         if self._client is None:
             self._client = MongoClient(
-                self.connection_string,
-                tlsAllowInvalidCertificates=self.tls_allow_invalid_certificates
+                self.mongodb_config.connection_string,
+                tlsAllowInvalidCertificates=self.mongodb_config.tls_allow_invalid_certificates,
             )
-            self._db = self._client[self.database_name]
+            self._db = self._client[self.mongodb_config.database]
 
     def close(self) -> None:
         """Close the MongoDB connection."""
@@ -100,7 +95,7 @@ class MongoDBManager:
         collection_name: str,
         filter_query: dict[str, Any],
         update_data: dict[str, Any],
-        upsert: bool = True
+        upsert: bool = True,
     ) -> bool:
         """
         Update a single document in a collection.
@@ -116,16 +111,12 @@ class MongoDBManager:
         """
         collection = self.get_collection(collection_name)
         result = collection.update_one(
-            filter_query,
-            {'$set': update_data},
-            upsert=upsert
+            filter_query, {"$set": update_data}, upsert=upsert
         )
         return result.modified_count > 0 or result.upserted_id is not None
 
     def find_one(
-        self,
-        collection_name: str,
-        query: dict[str, Any]
+        self, collection_name: str, query: dict[str, Any]
     ) -> dict[str, Any] | None:
         """
         Find a single document in a collection.
@@ -141,9 +132,7 @@ class MongoDBManager:
         return collection.find_one(query)
 
     def find_all(
-        self,
-        collection_name: str,
-        query: dict[str, Any] | None = None
+        self, collection_name: str, query: dict[str, Any] | None = None
     ) -> list[dict[str, Any]]:
         """
         Find documents in a collection.
@@ -198,5 +187,5 @@ class MongoDBManager:
         Returns:
             dict: Document with timestamp added
         """
-        document['created_at'] = datetime.datetime.utcnow()
+        document["created_at"] = datetime.datetime.utcnow()
         return document
