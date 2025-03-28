@@ -1,14 +1,16 @@
 from typing import Dict
-from base_scraper import BaseScraper
-from mongodb_manager import MongoDBManager
-from image_handler import ImageHandler
-from utils import get_url_hash
+
+from iris.config.config_manager import ShopConfig
+from iris.data_pipeline.base_scraper import BaseScraper
+from iris.data_pipeline.image_handler import ImageHandler
+from iris.data_pipeline.mongodb_manager import MongoDBManager
+from iris.data_pipeline.utils import get_url_hash
 
 
 class ProductHandler:
     """
     A class for handling product-specific scraping operations.
-    
+
     Features:
     - Product page loading and parsing
     - Product metadata extraction
@@ -18,35 +20,28 @@ class ProductHandler:
 
     def __init__(
         self,
-        filters: Dict[str, str],
-        mongo_manager: MongoDBManager | None,
-        image_selector: str = "img",
-        wait_for_selector: str = "img"
+        mongodb_manager: MongoDBManager,
+        shop_config: ShopConfig,
     ) -> None:
         """
         Initialize the ProductHandler.
 
         Args:
-            filters (Dict[str, str]): CSS selectors for extracting product data.
-            mongo_manager (MongoDBManager): MongoDB manager instance.
-                                            If None, creates a new connection.
-            image_selector (str): CSS selector for finding image elements.
-            wait_for_selector (str): CSS selector to wait for before considering page loaded.
+            mongodb_manager (MongoDBManager): MongoDB manager instance.
+            shop_config (ShopConfig): Shop config instance.
         """
-        self.filters = filters
-        self.mongo_manager = mongo_manager
-        self.image_selector = image_selector
-        self.wait_for_selector = wait_for_selector
-            
+        self.mongodb_manager = mongodb_manager
+        self.shop_config = shop_config
+
         # Initialize the base scraper and image handler
-        self.scraper = BaseScraper()
-        self.image_handler = ImageHandler(mongo_manager)
+        self.scraper = BaseScraper(self.shop_config.scraper_config)
+        self.image_handler = ImageHandler(self.mongodb_manager)
 
     def __del__(self):
         """
         Cleanup: Close the base scraper
         """
-        if hasattr(self, 'scraper'):
+        if hasattr(self, "scraper"):
             del self.scraper
 
     def process_product(self, url: str) -> Dict[str, str] | None:
@@ -61,46 +56,48 @@ class ProductHandler:
         """
         # Generate a hash for the product URL
         product_hash = get_url_hash(url)
-        
+
         # Check if we already have this product in MongoDB
-        query = {'product_hash': product_hash}
-        existing_product = self.mongo_manager.find_one('products', query)
+        query = {"product_hash": product_hash}
+        existing_product = self.mongodb_manager.find_one("products", query)
         if existing_product:
             print(f"Product already exists in database: {url}")
             return existing_product
 
         # Load the page
-        soup = self.scraper.load_page(url, wait_for_selector=self.wait_for_selector)
+        soup = self.scraper.load_page(url)
         if not soup:
             print(f"Failed to load product page: {url}")
             return None
 
         # Extract product data
-        product_data = self.scraper.extract_data(soup, self.filters)
+        product_data = self.scraper.extract_data(
+            soup, self.shop_config.metadata_selectors
+        )
         if not product_data:
             print(f"No product data found on page: {url}")
             return None
 
         # Process images and get their hashes
-        image_hashes = self.image_handler.process_images(
-            soup,
-            image_selector=self.image_selector,
-            product_hash=product_hash
-        )
+        image_hashes = []
+        for image_selector in self.shop_config.image_selectors:
+            image_hashes.extend(
+                self.image_handler.process_images(
+                    soup, image_selector=image_selector, product_hash=product_hash
+                )
+            )
 
         # Add URL, hash, image references, and timestamp
-        product_data['url'] = url
-        product_data['product_hash'] = product_hash
-        product_data['image_hashes'] = image_hashes  # Store references to images
-        product_data = self.mongo_manager.add_timestamp(product_data)
+        product_data["url"] = url
+        product_data["product_hash"] = product_hash
+        product_data["image_hashes"] = image_hashes  # Store references to images
+        product_data = self.mongodb_manager.add_timestamp(product_data)
 
         # Store in MongoDB
         try:
             # Use product_hash as unique identifier to prevent duplicates
-            self.mongo_manager.update_one(
-                'products',
-                {'product_hash': product_hash},
-                product_data
+            self.mongodb_manager.update_one(
+                "products", {"product_hash": product_hash}, product_data
             )
             print(f"Successfully processed product: {url}")
             return product_data
@@ -116,4 +113,4 @@ class ProductHandler:
             urls (list[str]): List of product page URLs to process.
         """
         for url in urls:
-            self.process_product(url) 
+            self.process_product(url)

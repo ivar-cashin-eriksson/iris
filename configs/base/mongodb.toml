@@ -1,6 +1,6 @@
 # MongoDB connection configuration
 connection_string = "mongodb+srv://test:test@iris-cluster.andes.mongodb.net/?retryWrites=true&w=majority&appName=iris-cluster"
-database = "iris"
+database = "iris_test"
 
 # Collections
 image_metadata_collection = "image_metadata"

@@ -15,4 +15,3 @@ product_details = '''#radix-\:r7d\: > div.flex.h-full.w-full.flex-col.border-t.p
 
 [scraper_overrides]
 rate_limit = 0.5
-user_agent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"

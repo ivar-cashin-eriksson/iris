@@ -2,6 +2,9 @@
 __pycache__/
 *.py[cod]
 
+# Installed iris package
+iris.egg-info/
+
 # Virtual environment
 .venv/
 .python-version

@@ -1,3 +1,7 @@
+from pathlib import Path
+from typing import Dict
+
+from bs4 import BeautifulSoup
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.chrome.service import Service
@@ -5,26 +9,27 @@ from selenium.webdriver.chrome.webdriver import WebDriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.ui import WebDriverWait
-from bs4 import BeautifulSoup
 from webdriver_manager.chrome import ChromeDriverManager
-from pathlib import Path
-from typing import Dict
+
+from iris.config.config_manager import ScraperConfig
 
 
 class BaseScraper:
     """
     A base class for web scraping that handles page loading and basic HTML parsing.
-    
+
     Features:
     - Selenium WebDriver setup and management
     - Page loading with wait conditions
     - Basic HTML parsing with BeautifulSoup
     """
 
-    def __init__(self) -> None:
+    def __init__(self, scraper_config: ScraperConfig) -> None:
         """
         Initialize the BaseScraper with a configured Selenium WebDriver.
         """
+        self.scraper_config = scraper_config
+
         # Set up Selenium WebDriver
         chrome_options = Options()
         chrome_options.add_argument("--headless")
@@ -33,28 +38,30 @@ class BaseScraper:
         chrome_options.add_argument("--disable-gpu")
         chrome_options.add_argument("--disable-extensions")
         chrome_options.add_argument("--disable-software-rasterizer")
-        
+
         # First try to find ChromeDriver in the project directory
         project_root = Path(__file__).parent.parent.parent
         chromedriver_path = project_root / "chromedriver.exe"  # Windows executable
-        
+
         if chromedriver_path.exists():
             print(f"Using ChromeDriver from project directory: {chromedriver_path}")
             service = Service(str(chromedriver_path))
         else:
             print("ChromeDriver not found in project directory, downloading...")
             service = Service(ChromeDriverManager().install())
-            
-        self.driver: WebDriver = webdriver.Chrome(service=service, options=chrome_options)
+
+        self.driver: WebDriver = webdriver.Chrome(
+            service=service, options=chrome_options
+        )
 
     def __del__(self):
         """
         Cleanup: Close the WebDriver when the object is destroyed.
         """
-        if hasattr(self, 'driver'):
+        if hasattr(self, "driver"):
             self.driver.quit()
 
-    def load_page(self, url: str, wait_for_selector: str = "img", timeout: int = 10) -> BeautifulSoup | None:
+    def load_page(self, url: str) -> BeautifulSoup | None:
         """
         Loads a web page using Selenium and returns a parsed BeautifulSoup object.
 
@@ -70,27 +77,31 @@ class BaseScraper:
         self.driver.get(url)
 
         try:
-            WebDriverWait(self.driver, timeout).until(
-                EC.presence_of_element_located((By.CSS_SELECTOR, wait_for_selector))
+            WebDriverWait(self.driver, self.scraper_config.timeout).until(
+                EC.presence_of_element_located(
+                    (By.CSS_SELECTOR, self.scraper_config.wait_for_selector)
+                )
             )
             return BeautifulSoup(self.driver.page_source, "html.parser")
         except Exception as e:
             print(f"Error loading {url}: {e}")
             return None
 
-    def extract_data(self, soup: BeautifulSoup, filters: Dict[str, str]) -> Dict[str, str]:
+    def extract_data(
+        self, soup: BeautifulSoup, selectors: Dict[str, str]
+    ) -> Dict[str, str]:
         """
         Extracts data from the given BeautifulSoup object using provided CSS selectors.
 
         Args:
             soup (BeautifulSoup): Parsed HTML page.
-            filters (Dict[str, str]): Dictionary mapping data keys to CSS selectors.
+            selectors (Dict[str, str]): Dictionary mapping data keys to CSS selectors.
 
         Returns:
             Dict[str, str]: Extracted data with values from matching elements.
         """
         data = {}
-        for key, selector in filters.items():
+        for key, selector in selectors.items():
             element = soup.select_one(selector)
             data[key] = element.text.strip() if element else "NOT_FOUND"
-        return data 
+        return data

@@ -11,4 +11,4 @@ def get_url_hash(url: str) -> str:
     Returns:
         str: A hash of the URL.
     """
-    return hashlib.md5(url.encode()).hexdigest() 
+    return hashlib.md5(url.encode()).hexdigest()

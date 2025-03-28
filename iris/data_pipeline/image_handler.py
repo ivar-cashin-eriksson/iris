@@ -1,9 +1,11 @@
 from pathlib import Path
 from urllib.parse import urlparse
+
 import requests
 from bs4 import BeautifulSoup
-from mongodb_manager import MongoDBManager
-from utils import get_url_hash
+
+from iris.data_pipeline.mongodb_manager import MongoDBManager
+from iris.data_pipeline.utils import get_url_hash
 
 
 class ImageHandler:
@@ -18,24 +20,26 @@ class ImageHandler:
     - Product-image relationship management
     """
 
-    def __init__(self, mongo_manager: MongoDBManager, save_dir: str = "data") -> None:
+    def __init__(
+        self, mongodb_manager: MongoDBManager, save_dir: str = "data"
+    ) -> None:  # TODO: Implement blob storage config
         """
         Initializes the ImageHandler.
 
         Args:
             save_dir (str): Directory to store downloaded images.
-            mongo_manager (MongoDBManager | None): MongoDB manager instance.
+            mongodb_manager (MongoDBManager | None): MongoDB manager instance.
                                                  If None, creates a new connection.
 
         Attributes:
             save_dir (Path): The directory where images will be stored.
             images_dir (Path): The directory for downloaded images.
-            mongo_manager (MongoDBManager): MongoDB manager instance.
+            mongodb_manager (MongoDBManager): MongoDB manager instance.
         """
         self.save_dir = Path(save_dir)
         self.images_dir = self.save_dir / "images"
         self.images_dir.mkdir(parents=True, exist_ok=True)
-        self.mongo_manager = mongo_manager
+        self.mongodb_manager = mongodb_manager
 
     def extract_image_urls(self, soup: BeautifulSoup, image_selector: str) -> list[str]:
         """
@@ -67,7 +71,9 @@ class ImageHandler:
 
         return image_urls
 
-    def save_image_metadata(self, img_url: str, image_hash: str, local_path: Path, product_hash: str) -> None:
+    def save_image_metadata(
+        self, img_url: str, image_hash: str, local_path: Path, product_hash: str
+    ) -> None:
         """
         Saves image metadata to MongoDB.
 
@@ -80,18 +86,16 @@ class ImageHandler:
         try:
             # Prepare the document
             image_doc = {
-                'image_hash': image_hash,
-                'local_path': str(local_path),
-                'original_url': img_url,
-                'source_product': product_hash
+                "image_hash": image_hash,
+                "local_path": str(local_path),
+                "original_url": img_url,
+                "source_product": product_hash,
             }
-            
+
             # Add timestamp and save to MongoDB
-            image_doc = self.mongo_manager.add_timestamp(image_doc)
-            self.mongo_manager.update_one(
-                'image_metadata',
-                {'image_hash': image_hash},
-                image_doc
+            image_doc = self.mongodb_manager.add_timestamp(image_doc)
+            self.mongodb_manager.update_one(
+                "image_metadata", {"image_hash": image_hash}, image_doc
             )
 
         except Exception as e:
@@ -134,7 +138,9 @@ class ImageHandler:
             print(f"Failed to download {img_url}: {e}")
             return None
 
-    def process_images(self, soup: BeautifulSoup, image_selector: str, product_hash: str) -> list[str]:
+    def process_images(
+        self, soup: BeautifulSoup, image_selector: str, product_hash: str
+    ) -> list[str]:
         """
         Process all images from a webpage: extract, download, and save metadata.
 
@@ -152,15 +158,17 @@ class ImageHandler:
         for img_url in image_urls:
             # Generate a deterministic hash for the image URL
             image_hash = get_url_hash(img_url)
-            
+
             # Check if we already have this image in MongoDB
-            existing_image = self.mongo_manager.find_one('image_metadata', {'image_hash': image_hash})
-            
+            existing_image = self.mongodb_manager.find_one(
+                "image_metadata", {"image_hash": image_hash}
+            )
+
             if existing_image:
                 print(f"Image already exists in database: {img_url}")
                 processed_image_hashes.append(image_hash)
                 continue
-            
+
             # First download the image locally
             local_path = self.download_image(img_url, image_hash)
             if local_path:
@@ -168,4 +176,4 @@ class ImageHandler:
                 self.save_image_metadata(img_url, image_hash, local_path, product_hash)
                 processed_image_hashes.append(image_hash)
 
-        return processed_image_hashes 
+        return processed_image_hashes
