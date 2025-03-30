@@ -1,6 +1,6 @@
 from typing import Dict
 
-from iris.config.config_manager import ShopConfig
+from iris.config.config_manager import ShopConfig, StorageConfig
 from iris.data_pipeline.base_scraper import BaseScraper
 from iris.data_pipeline.image_handler import ImageHandler
 from iris.data_pipeline.mongodb_manager import MongoDBManager
@@ -20,22 +20,28 @@ class ProductHandler:
 
     def __init__(
         self,
-        mongodb_manager: MongoDBManager,
         shop_config: ShopConfig,
+        storage_config: StorageConfig,
+        mongodb_manager: MongoDBManager,
     ) -> None:
         """
         Initialize the ProductHandler.
 
         Args:
-            mongodb_manager (MongoDBManager): MongoDB manager instance.
             shop_config (ShopConfig): Shop config instance.
+            mongodb_manager (MongoDBManager): MongoDB manager instance.
         """
-        self.mongodb_manager = mongodb_manager
         self.shop_config = shop_config
+        self.storage_config = storage_config
+        self.mongodb_manager = mongodb_manager
 
         # Initialize the base scraper and image handler
         self.scraper = BaseScraper(self.shop_config.scraper_config)
-        self.image_handler = ImageHandler(self.mongodb_manager)
+        self.image_handler = ImageHandler(
+            self.shop_config, 
+            self.storage_config, 
+            self.mongodb_manager
+        )
 
     def __del__(self):
         """
@@ -80,7 +86,7 @@ class ProductHandler:
 
         # Process images and get their hashes
         image_hashes = []
-        for image_selector in self.shop_config.image_selectors:
+        for image_selector in self.shop_config.image_selectors.values():
             image_hashes.extend(
                 self.image_handler.process_images(
                     soup, image_selector=image_selector, product_hash=product_hash

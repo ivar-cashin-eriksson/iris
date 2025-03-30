@@ -4,6 +4,7 @@ from urllib.parse import urlparse
 import requests
 from bs4 import BeautifulSoup
 
+from iris.config.config_manager import ShopConfig, StorageConfig
 from iris.data_pipeline.mongodb_manager import MongoDBManager
 from iris.data_pipeline.utils import get_url_hash
 
@@ -21,25 +22,32 @@ class ImageHandler:
     """
 
     def __init__(
-        self, mongodb_manager: MongoDBManager, save_dir: str = "data"
-    ) -> None:  # TODO: Implement blob storage config
+        self, 
+        shop_config: ShopConfig,
+        storage_config: StorageConfig, 
+        mongodb_manager: MongoDBManager
+    ) -> None:
         """
-        Initializes the ImageHandler.
+        Initialize the image handler.
 
         Args:
-            save_dir (str): Directory to store downloaded images.
-            mongodb_manager (MongoDBManager | None): MongoDB manager instance.
-                                                 If None, creates a new connection.
+            shop_config: Shop configuration
+            storage_config: Storage configuration
+            mongodb_manager: MongoDB manager for storing metadata
 
         Attributes:
-            save_dir (Path): The directory where images will be stored.
-            images_dir (Path): The directory for downloaded images.
-            mongodb_manager (MongoDBManager): MongoDB manager instance.
+            shop_config (ShopConfig): Shop configuration
+            storage_config (StorageConfig): Storage configuration
+            mongodb_manager (MongoDBManager): MongoDB manager instance
+            images_dir (Path): The directory for downloaded images
         """
-        self.save_dir = Path(save_dir)
-        self.images_dir = self.save_dir / "images"
-        self.images_dir.mkdir(parents=True, exist_ok=True)
+        self.shop_config = shop_config
+        self.storage_config = storage_config
         self.mongodb_manager = mongodb_manager
+
+        # Create the images directory within the shop's storage path
+        self.images_dir = self.storage_config.get_storage_path(self.shop_config) / "images"
+        self.images_dir.mkdir(parents=True, exist_ok=True)
 
     def extract_image_urls(self, soup: BeautifulSoup, image_selector: str) -> list[str]:
         """
@@ -112,7 +120,6 @@ class ImageHandler:
         Returns:
             Optional[Path]: Path to the saved image or None if the download fails.
         """
-        self.images_dir.mkdir(parents=True, exist_ok=True)
 
         # Parse the URL to remove query parameters
         parsed_url = urlparse(img_url)

@@ -9,15 +9,10 @@ from typing import Dict
 
 
 @dataclass(frozen=True)
-class MongoDBConfig:
-    """MongoDB configuration."""
+class BaseConfig:
+    """Base configuration with environment settings."""
 
-    connection_string: str
-    database: str
-    image_metadata_collection: str = "image_metadata"
-    products_collection: str = "products"
-    scraping_progress_collection: str = "scraping_progress"
-    tls_allow_invalid_certificates: bool = True
+    environment: str = "dev"  # Default to development environment
 
 
 @dataclass(frozen=True)
@@ -42,6 +37,42 @@ class ShopConfig:
     image_selectors: dict[str, str]
     metadata_selectors: dict[str, str]
     scraper_config: ScraperConfig
+    shop_name: str | None = None  # Optional, set from filename if None
+
+
+@dataclass(frozen=True, kw_only=True)  # kw_only=True due to inheritance of BaseConfig
+class StorageConfig(BaseConfig):
+    """Storage configuration."""
+
+    base_path: str
+    path_template: str = "{env}/{shop_name}"
+
+    def get_storage_path(self, shop_config: ShopConfig) -> Path:
+        """Get the storage path for a specific shop."""
+        computed_path = self.path_template.format(
+            env=self.environment,
+            shop_name=shop_config.shop_name
+        )
+        return Path(self.base_path) / computed_path
+
+
+@dataclass(frozen=True, kw_only=True)  # kw_only=True due to inheritance of BaseConfig
+class MongoDBConfig(BaseConfig):
+    """MongoDB configuration."""
+
+    connection_string: str
+    database_template: str = "iris_{env}_{shop_name}"
+    image_metadata_collection: str = "image_metadata"
+    products_collection: str = "products"
+    scraping_progress_collection: str = "scraping_progress"
+    tls_allow_invalid_certificates: bool = True
+
+    def get_database_name(self, shop_config: ShopConfig) -> str:
+        """Get the database name for a specific shop."""
+        return self.database_template.format(
+            env=self.environment,
+            shop_name=shop_config.shop_name
+        )
 
 
 class ConfigManager:
@@ -71,9 +102,11 @@ class ConfigManager:
         self.shops_config_dir.mkdir(parents=True, exist_ok=True)
 
         # Initialize configuration storage
-        self.mongodb_config: MongoDBConfig
+        self.base_config: BaseConfig
         self.scraper_config: ScraperConfig
         self.shop_configs: Dict[str, ShopConfig] = {}
+        self.storage_config: StorageConfig
+        self.mongodb_config: MongoDBConfig
 
         # Load configurations
         self._load_all_configs()
@@ -88,9 +121,9 @@ class ConfigManager:
 
     def _load_all_configs(self) -> None:
         """Load all configuration files."""
-        # Load MongoDB Config
-        mongodb_data = self._load_toml(self.base_config_dir / "mongodb.toml")
-        self.mongodb_config = self._create_mongodb_config(mongodb_data)
+        # Load Base Config
+        base_data = self._load_toml(self.base_config_dir / "base.toml")
+        self.base_config = BaseConfig(**base_data)
 
         # Load Scraper Config
         scraper_data = self._load_toml(self.base_config_dir / "scraper.toml")
@@ -100,10 +133,18 @@ class ConfigManager:
         for shop_config_path in self.shops_config_dir.glob("*.toml"):
             shop_name = shop_config_path.stem
             shop_config_data = self._load_toml(shop_config_path)
-            self.shop_configs[shop_name] = self._create_shop_config(shop_config_data)
+            self.shop_configs[shop_name] = self._create_shop_config(
+                shop_config_data, 
+                shop_name
+            )
 
-    def _create_mongodb_config(self, data: dict) -> MongoDBConfig:
-        return MongoDBConfig(**data)
+        # Load Storage Config
+        storage_data = self._load_toml(self.base_config_dir / "storage.toml")
+        self.storage_config = self._create_storage_config(storage_data)
+
+        # Load MongoDB Config
+        mongodb_data = self._load_toml(self.base_config_dir / "mongodb.toml")
+        self.mongodb_config = self._create_mongodb_config(mongodb_data)
 
     def _create_scraper_config(
         self, data: dict, override_data: dict | None = None
@@ -115,7 +156,11 @@ class ConfigManager:
         # Make ScraperConfig
         return ScraperConfig(**data)
 
-    def _create_shop_config(self, data: dict) -> ShopConfig:
+    def _create_shop_config(self, data: dict, shop_name: str) -> ShopConfig:
+        # Use configured shop_name if provided, otherwise use filename
+        if "shop_name" not in data:
+            data["shop_name"] = shop_name
+
         # Merge the default scraper config with any shop-specific overrides
         scraper_overrides = data.pop("scraper_overrides", {})
         scraper_config = self._create_scraper_config(
@@ -124,3 +169,9 @@ class ConfigManager:
 
         # Make ShopConfig
         return ShopConfig(**data, scraper_config=scraper_config)
+    
+    def _create_storage_config(self, data: dict) -> StorageConfig:
+        return StorageConfig(**data, environment=self.base_config.environment)
+
+    def _create_mongodb_config(self, data: dict) -> MongoDBConfig:
+        return MongoDBConfig(**data, environment=self.base_config.environment)
