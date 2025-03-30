@@ -5,7 +5,7 @@ from pymongo import MongoClient
 from pymongo.collection import Collection
 from pymongo.database import Database
 
-from iris.config.config_manager import MongoDBConfig
+from iris.config.config_manager import ShopConfig, MongoDBConfig
 
 
 class MongoDBManager:
@@ -20,14 +20,15 @@ class MongoDBManager:
     - Context manager support
     """
 
-    def __init__(self, mongodb_config: MongoDBConfig) -> None:
+    def __init__(self, shop_config: ShopConfig, mongodb_config: MongoDBConfig) -> None:
         """
         Initialize the MongoDB manager.
 
         Args:
-            config_manager (ConfigManager): Configuration manager instance
-            tls_allow_invalid_certificates (bool): Whether to allow invalid certificates
+            shop_config (ShopConfig): Shop configuration
+            mongodb_config (MongoDBConfig): MongoDB configuration
         """
+        self.shop_config = shop_config
         self.mongodb_config = mongodb_config
         self._client: MongoClient | None = None
         self._db: Database | None = None
@@ -49,7 +50,9 @@ class MongoDBManager:
                 self.mongodb_config.connection_string,
                 tlsAllowInvalidCertificates=self.mongodb_config.tls_allow_invalid_certificates,
             )
-            self._db = self._client[self.mongodb_config.database]
+            # Use shop-specific database name
+            database_name = self.mongodb_config.get_database_name(self.shop_config)
+            self._db = self._client[database_name]
 
     def close(self) -> None:
         """Close the MongoDB connection."""

@@ -5,7 +5,7 @@ from urllib.parse import urljoin, urlparse
 
 from bs4 import BeautifulSoup
 
-from iris.config.config_manager import ConfigManager, MongoDBConfig, ShopConfig
+from iris.config.config_manager import ShopConfig, MongoDBConfig
 from iris.data_pipeline.base_scraper import BaseScraper
 from iris.data_pipeline.mongodb_manager import MongoDBManager
 from iris.data_pipeline.product_handler import ProductHandler
@@ -25,24 +25,24 @@ class WebShopScraper:
 
     def __init__(
         self,
+        shop_config: ShopConfig,
+        mongodb_config: MongoDBConfig,
         mongodb_manager: MongoDBManager,
         product_handler: ProductHandler,
-        mongodb_config: MongoDBConfig,
-        shop_config: ShopConfig,
     ) -> None:
         """
         Initialize the WebShopScraper.
 
         Args:
+            shop_config (ShopConfig): Shop configuration
+            mongodb_config (MongoDBConfig): MongoDB configuration
             product_handler (ProductHandler): Handler for processing individual products
             mongodb_manager (MongoDBManager): MongoDB manager for storing progress
-            mongodb_config (MongoDBConfig): MongoDB configuration
-            shop_config (ShopConfig): Shop configuration
         """
+        self.shop_config = shop_config
+        self.mongodb_config = mongodb_config
         self.product_handler = product_handler
         self.mongodb_manager = mongodb_manager
-        self.mongodb_config = mongodb_config
-        self.shop_config = shop_config
 
         # Initialize the base scraper
         self.scraper = BaseScraper(self.shop_config.scraper_config)
