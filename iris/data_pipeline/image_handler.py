@@ -49,38 +49,89 @@ class ImageHandler:
         self.images_dir = self.storage_config.get_storage_path(self.shop_config) / "images"
         self.images_dir.mkdir(parents=True, exist_ok=True)
 
-    def extract_image_urls(self, soup: BeautifulSoup, image_selector: str) -> list[str]:
+    def _get_element_path(self, element: BeautifulSoup) -> str:
         """
-        Extracts image URLs from the given BeautifulSoup object.
+        Get the full path from root to the element, including classes and IDs.
+
+        Args:
+            element (BeautifulSoup): The element to get the path for.
+
+        Returns:
+            str: The full path from root to the element.
+        """
+        # Get all parents including the element itself
+        path = [element] + list(element.find_parents())
+        
+        # Build identifiers for each element in the path
+        identifiers = []
+        for elem in reversed(path):  # Reverse to get root-to-element order
+            if identifier := elem.name:
+                if classes := elem.get("class"):
+                    identifier += f".{' .'.join(classes)}"
+                if elem_id := elem.get("id"):
+                    identifier += f"#{elem_id}"
+                identifiers.append(identifier)
+        
+        return " > ".join(identifiers)
+
+    def _get_image_data(self, img_element: BeautifulSoup) -> tuple[str, str] | None:
+        """
+        Extract URL and location data from an image element.
+
+        Args:
+            img_element (BeautifulSoup): The image element to process.
+
+        Returns:
+            tuple[str, str] | None: Tuple of (url, location) if URL is found, None otherwise.
+        """
+        src = img_element.get("src")
+        if not src:
+            return None
+
+        # Get the full path from root to the image
+        location = self._get_element_path(img_element)
+
+        return (src, location)
+
+    def extract_image_urls(
+        self, 
+        soup: BeautifulSoup, 
+        image_selector: str
+    ) -> list[tuple[str, str]]:
+        """
+        Extracts image URLs and their locations from the given BeautifulSoup object.
 
         Args:
             soup (BeautifulSoup): Parsed HTML page.
             image_selector (str): CSS selector for finding image elements.
 
         Returns:
-            List[str]: A list of image URLs.
+            List[tuple[str, str]]: A list of tuples containing (url, location) where location describes
+                                 where the URL was found in the HTML structure.
         """
-        image_urls = []
+        image_data = []
         elements = soup.select(image_selector)
 
         for element in elements:
             if element.name == "img":
-                # Directly an <img>, extract src
-                src = element.get("src")
-                if src:
-                    image_urls.append(src)
+                # Directly an <img>, extract data
+                if data := self._get_image_data(element):
+                    image_data.append(data)
             else:
                 # It's a container (e.g., <div>), find all <img> inside
-                img_elements = element.find_all("img")
-                for img in img_elements:
-                    src = img.get("src")
-                    if src:
-                        image_urls.append(src)
+                for img in element.find_all("img"):
+                    if data := self._get_image_data(img):
+                        image_data.append(data)
 
-        return image_urls
+        return image_data
 
     def save_image_metadata(
-        self, img_url: str, image_hash: str, local_path: Path, product_hash: str
+        self, 
+        img_url: str, 
+        image_hash: str, 
+        local_path: Path, 
+        product_hash: str, 
+        html_location: str
     ) -> None:
         """
         Saves image metadata to MongoDB.
@@ -90,6 +141,7 @@ class ImageHandler:
             image_hash (str): Hash of the image URL
             local_path (Path): Local path where the image is stored
             product_hash (str): Hash of the product where the image was found
+            html_location (str): Location in the HTML where the image was found
         """
         try:
             # Prepare the document
@@ -98,6 +150,7 @@ class ImageHandler:
                 "local_path": str(local_path),
                 "original_url": img_url,
                 "source_product": product_hash,
+                "html_location": html_location,  # Add HTML location information
             }
 
             # Add timestamp and save to MongoDB
@@ -159,10 +212,10 @@ class ImageHandler:
         Returns:
             List[str]: List of image hashes that were processed.
         """
-        image_urls = self.extract_image_urls(soup, image_selector)
+        image_data = self.extract_image_urls(soup, image_selector)
         processed_image_hashes = []
 
-        for img_url in image_urls:
+        for img_url, location in image_data:
             # Generate a deterministic hash for the image URL
             image_hash = get_url_hash(img_url)
 
@@ -180,7 +233,13 @@ class ImageHandler:
             local_path = self.download_image(img_url, image_hash)
             if local_path:
                 # Then save the reference to MongoDB
-                self.save_image_metadata(img_url, image_hash, local_path, product_hash)
+                self.save_image_metadata(
+                    img_url, 
+                    image_hash, 
+                    local_path, 
+                    product_hash, 
+                    location
+                )
                 processed_image_hashes.append(image_hash)
 
         return processed_image_hashes
