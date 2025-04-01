@@ -11,7 +11,9 @@ from typing import final
 class BaseConfig:
     """Base configuration with environment settings."""
 
+    base_path: str
     environment: str = "dev"  # Default to development environment
+    device: str = "cpu"
 
 
 class ConfigManager(ABC):

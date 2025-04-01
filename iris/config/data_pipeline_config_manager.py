@@ -38,12 +38,11 @@ class ShopConfig:
 class StorageConfig(BaseConfig):
     """Storage configuration."""
 
-    base_path: str
-    path_template: str = "{env}/{shop_name}"
+    _path_template: str = "{env}/{shop_name}"
 
     def get_storage_path(self, shop_config: ShopConfig) -> Path:
         """Get the storage path for a specific shop."""
-        computed_path = self.path_template.format(
+        computed_path = self._path_template.format(
             env=self.environment,
             shop_name=shop_config.shop_name
         )
@@ -55,7 +54,7 @@ class MongoDBConfig(BaseConfig):
     """MongoDB configuration."""
 
     connection_string: str
-    database_template: str = "iris_{env}_{shop_name}"
+    _database_template: str = "iris_{env}_{shop_name}"
     image_metadata_collection: str = "image_metadata"
     products_collection: str = "products"
     scraping_progress_collection: str = "scraping_progress"
@@ -63,7 +62,7 @@ class MongoDBConfig(BaseConfig):
 
     def get_database_name(self, shop_config: ShopConfig) -> str:
         """Get the database name for a specific shop."""
-        return self.database_template.format(
+        return self._database_template.format(
             env=self.environment,
             shop_name=shop_config.shop_name
         )
