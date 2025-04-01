@@ -1,3 +1,2 @@
 # Storage configuration
-base_path = "C:/Users/ice/projects/iris/"
 path_template = "data/{env}/{shop_name}"  # Template for shop-specific paths
