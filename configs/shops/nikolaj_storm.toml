@@ -10,7 +10,7 @@ price = '''div.elementor.elementor-8061.elementor-location-single.product > div 
 description = '''div.elementor.elementor-8061.elementor-location-single.product > div > div > div.elementor-element.elementor-element-3500d0b.e-flex.e-con-boxed.e-con.e-child > div > div.elementor-element.elementor-element-97fb32d.elementor-widget.elementor-widget-woocommerce-product-short-description > div > div'''
 
 [scraper_overrides]
-rate_limit = 0.5
-pagination_link = "a.page-numbers"
+rate_limit = 0.0
+pagination_link = "a[href*='/page/']"
 product_link = "a[href*='/webshop/']"
 category_link = "a[href*='/vare-kategori/']"
