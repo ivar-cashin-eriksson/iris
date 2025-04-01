@@ -17,6 +17,7 @@ setup(
         "Pillow",
         "pycocotools",
         "tqdm",
+        "segment-anything @ git+https://github.com/facebookresearch/segment-anything.git",
     ],
     extras_require={
         "dev": [
