@@ -1,0 +1,17 @@
+# Configuration for sam2
+config_path = "configs/sam2.1/sam2.1_hiera_l.yaml"
+checkpoint_path = "../checkpoints/sam2.1_hiera_large.pt"
+apply_postprocessing = false
+
+# Mask generation configuration
+[mask_generator_params]
+points_per_side = 8
+points_per_batch = 128
+pred_iou_thresh = 0.95
+stability_score_thresh = 0.95
+stability_score_offset = 0.7
+crop_n_layers = 1
+box_nms_thresh = 0.95
+crop_n_points_downscale_factor = 2
+min_mask_region_area = 100.0
+use_m2m = false
