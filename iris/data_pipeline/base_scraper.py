@@ -11,7 +11,7 @@ from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.ui import WebDriverWait
 from webdriver_manager.chrome import ChromeDriverManager
 
-from iris.config.config_manager import ScraperConfig
+from iris.config.data_pipeline_config_manager import ScraperConfig
 
 
 class BaseScraper:
