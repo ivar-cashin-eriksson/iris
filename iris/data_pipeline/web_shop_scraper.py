@@ -5,7 +5,7 @@ from urllib.parse import urljoin, urlparse
 
 from bs4 import BeautifulSoup
 
-from iris.config.config_manager import ShopConfig, MongoDBConfig
+from iris.config.data_pipeline_config_manager import ShopConfig, MongoDBConfig
 from iris.data_pipeline.base_scraper import BaseScraper
 from iris.data_pipeline.mongodb_manager import MongoDBManager
 from iris.data_pipeline.product_handler import ProductHandler

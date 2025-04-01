@@ -5,7 +5,7 @@ from pymongo import MongoClient
 from pymongo.collection import Collection
 from pymongo.database import Database
 
-from iris.config.config_manager import ShopConfig, MongoDBConfig
+from iris.config.data_pipeline_config_manager import ShopConfig, MongoDBConfig
 
 
 class MongoDBManager:

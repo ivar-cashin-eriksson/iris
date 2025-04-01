@@ -1,6 +1,6 @@
 from typing import Dict
 
-from iris.config.config_manager import ShopConfig, StorageConfig
+from iris.config.data_pipeline_config_manager import ShopConfig, StorageConfig
 from iris.data_pipeline.base_scraper import BaseScraper
 from iris.data_pipeline.image_handler import ImageHandler
 from iris.data_pipeline.mongodb_manager import MongoDBManager

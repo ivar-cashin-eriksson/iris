@@ -4,7 +4,7 @@ from urllib.parse import urlparse
 import requests
 from bs4 import BeautifulSoup
 
-from iris.config.config_manager import ShopConfig, StorageConfig
+from iris.config.data_pipeline_config_manager import ShopConfig, StorageConfig
 from iris.data_pipeline.mongodb_manager import MongoDBManager
 from iris.data_pipeline.utils import get_url_hash
 
