@@ -9,13 +9,13 @@ from pathlib import Path
 from iris.config.config_manager import BaseConfig, ConfigManager
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, kw_only=True)  # kw_only=True due to inheritance of BaseConfig
 class SAM2Config(BaseConfig):
     """Configuration for SAM2 mask generation."""
     
-    _config_path: str
     _checkpoint_path: str
     apply_postprocessing: bool = False
+    model_type: str = "default"
     mask_generator_params: dict[str, Union[int, float, bool]]
 
     def get_config_path(self) -> Path:
@@ -48,4 +48,4 @@ class SegmentationPipelineConfigManager(ConfigManager):
         self.sam2_config = self._create_segmentation_config(sam2_data)
 
     def _create_segmentation_config(self, data: dict) -> SAM2Config:
-        return SAM2Config(**data, environment=self.base_config.environment)
+        return SAM2Config(**data, base_path=self.base_config.base_path)

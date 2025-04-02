@@ -1,6 +1,6 @@
 # MongoDB connection configuration
 connection_string = "mongodb+srv://test:test@iris-cluster.andes.mongodb.net/?retryWrites=true&w=majority&appName=iris-cluster"
-database_template = "iris_{env}_{shop_name}"  # Template for database names with environment identifier
+_database_template = "iris_{env}_{shop_name}"  # Template for database names with environment identifier
 
 # Collections
 image_metadata_collection = "image_metadata"
