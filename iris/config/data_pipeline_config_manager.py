@@ -2,7 +2,7 @@
 Configuration manager for data pipeline.
 """
 
-from dataclasses import dataclass
+from dataclasses import dataclass, asdict
 from pathlib import Path
 from typing import Dict
 
@@ -116,7 +116,8 @@ class DataPipelineConfigManager(ConfigManager):
         self.mongodb_config: MongoDBConfig = self._create_mongodb_config(mongodb_data)
 
     def _create_scraper_config(
-        self, data: dict, override_data: dict | None = None
+        self, data: dict, 
+        override_data: dict | None = None
     ) -> ScraperConfig:
         # Merge the default config data with any overrides
         if override_data:
@@ -140,7 +141,7 @@ class DataPipelineConfigManager(ConfigManager):
         return ShopConfig(**data, scraper_config=scraper_config)
     
     def _create_storage_config(self, data: dict) -> StorageConfig:
-        return StorageConfig(**data, environment=self.base_config.environment)
+        return StorageConfig(**asdict(self.base_config), **data)
 
     def _create_mongodb_config(self, data: dict) -> MongoDBConfig:
-        return MongoDBConfig(**data, environment=self.base_config.environment)
+        return MongoDBConfig(**asdict(self.base_config), **data)
