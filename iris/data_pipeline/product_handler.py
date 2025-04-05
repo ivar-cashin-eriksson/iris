@@ -4,7 +4,7 @@ from iris.config.data_pipeline_config_manager import ShopConfig, StorageConfig
 from iris.data_pipeline.base_scraper import BaseScraper
 from iris.data_pipeline.image_handler import ImageHandler
 from iris.data_pipeline.mongodb_manager import MongoDBManager
-from iris.data_pipeline.utils import get_url_hash
+from iris.data_pipeline.utils import _get_url_hash
 
 
 class ProductHandler:
@@ -61,7 +61,7 @@ class ProductHandler:
             Dict[str, str] | None: Extracted product data if successful, None otherwise.
         """
         # Generate a hash for the product URL
-        product_hash = get_url_hash(url)
+        product_hash = _get_url_hash(url)
 
         # Check if we already have this product in MongoDB
         query = {"product_hash": product_hash}
