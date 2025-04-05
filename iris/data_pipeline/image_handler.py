@@ -6,7 +6,7 @@ from bs4 import BeautifulSoup
 
 from iris.config.data_pipeline_config_manager import ShopConfig, StorageConfig
 from iris.data_pipeline.mongodb_manager import MongoDBManager
-from iris.data_pipeline.utils import get_url_hash
+from iris.data_pipeline.utils import _get_url_hash
 
 
 class ImageHandler:
@@ -217,7 +217,7 @@ class ImageHandler:
 
         for img_url, location in image_data:
             # Generate a deterministic hash for the image URL
-            image_hash = get_url_hash(img_url)
+            image_hash = _get_url_hash(img_url)
 
             # Check if we already have this image in MongoDB
             existing_image = self.mongodb_manager.find_one(

@@ -9,9 +9,8 @@ from typing import List, Dict, Any, Union
 from segment_anything import sam_model_registry, SamAutomaticMaskGenerator
 
 from iris.config.segmentation_pipeline_config_manager import SAM2Config
-from iris.segmentation_pipeline.utils import get_device
-from iris.utils import convert_image_format
-from iris.segmentation_pipeline.utils import convert_mask_format
+from iris.utils.machine_utils import get_device
+from iris.utils.image_utils import convert_mask_format
 from iris.data_pipeline.mongodb_manager import MongoDBManager
 
 class SegmentationHandler:
