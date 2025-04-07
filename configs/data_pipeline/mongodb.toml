@@ -4,5 +4,5 @@ _database_template = "iris_{env}_{shop_name}"  # Template for database names wit
 
 # Collections
 image_metadata_collection = "image_metadata"
-products_collection = "products"
+product_collection = "products"
 scraping_progress_collection = "scraping_progress"
