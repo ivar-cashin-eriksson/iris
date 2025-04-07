@@ -56,7 +56,7 @@ class MongoDBConfig(BaseConfig):
     connection_string: str
     _database_template: str = "iris_{env}_{shop_name}"
     image_metadata_collection: str = "image_metadata"
-    products_collection: str = "products"
+    product_collection: str = "products"
     scraping_progress_collection: str = "scraping_progress"
     tls_allow_invalid_certificates: bool = True
 
