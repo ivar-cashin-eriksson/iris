@@ -19,6 +19,7 @@ setup(
         "pycocotools",
         "tqdm",
         "segment-anything>=1.0.0",
+        "mplcursors>=0.5.0",
     ],
     extras_require={
         "dev": [
