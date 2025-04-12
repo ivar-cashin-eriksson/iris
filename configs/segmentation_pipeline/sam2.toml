@@ -17,5 +17,5 @@ crop_n_layers = 0
 crop_nms_thresh = 0.85
 crop_overlap_ratio = 0.4
 crop_n_points_downscale_factor = 1
-min_mask_region_area = 100
+min_mask_region_area = 1000
 output_mode = "binary_mask"
