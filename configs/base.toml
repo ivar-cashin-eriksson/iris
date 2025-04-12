@@ -1,4 +1,4 @@
 # Base configuration
 base_path = "C:/Users/ice/projects/iris/"
 environment = "dev"  # Current environment (dev, test, prod) 
-device = "gpu"  # Preferred device to compute on (cuda, cpu, or mps)
+device = "cpu"  # Preferred device to compute on (cuda, cpu, or mps)
