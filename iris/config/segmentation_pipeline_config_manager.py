@@ -14,7 +14,6 @@ class SAM2Config(BaseConfig):
     """Configuration for SAM2 mask generation."""
     
     _checkpoint_path: str
-    apply_postprocessing: bool = False
     model_type: str = "default"
     mask_generator_params: dict[str, Union[int, float, bool]]
 

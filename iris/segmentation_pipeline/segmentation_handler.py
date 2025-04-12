@@ -7,6 +7,7 @@ import numpy as np
 from PIL import Image
 from typing import List, Dict, Any, Union
 from segment_anything import sam_model_registry, SamAutomaticMaskGenerator
+import hashlib
 
 from iris.config.segmentation_pipeline_config_manager import SAM2Config
 from iris.utils.machine_utils import get_device
@@ -89,7 +90,27 @@ class SegmentationHandler:
 
         return converted_masks
 
-    
+    def _generate_mask_hash(self, image_hash: str, mask_data: Dict[str, Any]) -> str:
+        """
+        Generate a unique hash for a mask based on image hash and mask properties.
+        
+        Args:
+            image_hash: Hash of the parent image
+            mask_data: Dictionary containing mask information
+            
+        Returns:
+            str: Unique hash for the mask
+        """
+        # Create a string combining relevant mask properties
+        mask_string = (
+            f"{image_hash}"
+            f"{str(mask_data['segmentation'])}"
+            f"{str(mask_data['bbox'])}"
+        )
+        
+        # Generate MD5 hash
+        return hashlib.md5(mask_string.encode()).hexdigest()
+
     def save_segmentation_metadata(
         self,
         image_hash: str,
@@ -107,10 +128,14 @@ class SegmentationHandler:
         Returns:
             bool: True if the document was updated, False otherwise.
         """
+        # Add unique hash to each mask
+        for mask in masks:
+            mask['mask_hash'] = self._generate_mask_hash(image_hash, mask)
+        
         # Use the MongoDBManager's update_one method to overwrite existing masks
         return mongodb_manager.update_one(
             collection_name=mongodb_manager.mongodb_config.image_metadata_collection,
             filter_query={"image_hash": image_hash},
             update_data={"masks": masks},
             upsert=False
-        ) 
+        )
