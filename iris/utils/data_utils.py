@@ -26,14 +26,15 @@ def image_to_base64(img: Union[np.ndarray, Image.Image]) -> str:
 def render_metadata_block(metadata: List[Tuple[str, str]], inline: bool=False) -> str:
     block = ""
     for label, content in metadata:
-        if inline:block += f"""
-            <div style='margin-bottom: 10px; color: black;'>
+        if inline:
+            block += f"""
+            <div style='margin-bottom: 5px; color: black;'>
                 <strong>{label}</strong> {content}
             </div>
             """
         else:
             block += f"""
-            <div style="margin-bottom: 10px; color: black;">
+            <div style="margin-bottom: 5px; color: black;">
                 <strong>{label}</strong>
                 <div style="margin-left: 20px; overflow-wrap: break-word; word-break: break-word;">
                     {content}
@@ -60,15 +61,24 @@ def render_mask_card(mask_data: dict, idx: int) -> str:
     draw = ImageDraw.Draw(mask_rgb)
     draw.rectangle([x, y, x + w, y + h], outline="white", width=2)
 
+    # Add a small cross at the sampled point
+    point_coords = mask_data.get("point_coords", [[None, None]])[0]
+    if point_coords[0] is not None and point_coords[1] is not None:
+        px, py = point_coords
+        cross_size = 10
+        draw.line([(px - cross_size, py), (px + cross_size, py)], fill="white", width=2)
+        draw.line([(px, py - cross_size), (px, py + cross_size)], fill="white", width=2)
+
     mask_base64 = image_to_base64(mask_rgb)
 
     metadata = [
-        ("Segmentation Size:", mask_data.get("segmentation", {}).get("size", "N/A")),
+        ("Mask Hash:", mask_data["mask_hash"]),
+        ("Crop Box:", mask_data["crop_box"]),
         ("Bounding Box:", f"[{x}, {y}, {w}, {h}]"),
-        ("Crop Box:", mask_data.get("crop_box", "N/A")),
-        ("Stability Score:", mask_data.get("stability_score", "N/A")),
-        ("Predicted IoU:", mask_data.get("predicted_iou", "N/A")),
-        ("Point Coords:", mask_data.get("point_coords", [["N/A"]])[0]),
+        ("Mask Area:", mask_data["area"]),
+        ("Point Coords:", f"[{point_coords[0]}, {point_coords[1]}]"),
+        ("Predicted IoU:", mask_data["predicted_iou"]),
+        ("Stability Score:", mask_data["stability_score"]),
     ]
 
     return f"""
@@ -82,15 +92,15 @@ def render_mask_card(mask_data: dict, idx: int) -> str:
 
 
 def render_mask_grid(masks: list, columns: int, sort_key: str, reverse: bool) -> str:
-    sorted_masks = sorted(
-        masks,
-        key=lambda m: m.get(sort_key, 0),
+    sorted_indices = sorted(
+        range(len(masks)),
+        key=lambda i: masks[i][sort_key],
         reverse=reverse
     )
 
     mask_cards = "\n".join(
-        render_mask_card(mask_data, idx)
-        for idx, mask_data in enumerate(sorted_masks)
+        render_mask_card(masks[idx], idx)
+        for idx in sorted_indices
     )
 
     return f"""
