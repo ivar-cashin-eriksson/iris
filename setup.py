@@ -20,6 +20,8 @@ setup(
         "tqdm",
         "segment-anything>=1.0.0",
         "mplcursors>=0.5.0",
+        "open-clip-torch",
+        "faiss-cpu",
     ],
     extras_require={
         "dev": [
