@@ -38,7 +38,7 @@ class ShopConfig:
 class StorageConfig(BaseConfig):
     """Storage configuration."""
 
-    _path_template: str = "{env}/{shop_name}"
+    _path_template: str = "data/{env}/{shop_name}"
 
     def get_storage_path(self, shop_config: ShopConfig) -> Path:
         """Get the storage path for a specific shop."""
