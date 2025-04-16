@@ -3,8 +3,10 @@ Configuration manager for embedding pipeline.
 """
 
 from dataclasses import dataclass, asdict
+from pathlib import Path
 
 from iris.config.config_manager import BaseConfig, ConfigManager
+from iris.config.data_pipeline_config_manager import ShopConfig
 
 @dataclass(frozen=True, kw_only=True)
 class ClipConfig(BaseConfig):
@@ -13,11 +15,20 @@ class ClipConfig(BaseConfig):
     pretrained: str
 
 
-@dataclass(frozen=True)
-class EmbeddingDBConfig:
+@dataclass(frozen=True, kw_only=True)
+class EmbeddingDBConfig(BaseConfig):
     """Configuration for embedding database."""
     embedding_dim: int
     index_type: str
+    _path_template: str = "data/{env}/{shop_name}/embeddings"
+
+    def get_storage_path(self, shop_config: ShopConfig) -> Path:
+        """Get the database directory for a specific shop."""
+        computed_path = self._path_template.format(
+            env=self.environment,
+            shop_name=shop_config.shop_name
+        )
+        return Path(self.base_path) / computed_path
 
 
 class EmbeddingPipelineConfigManager(ConfigManager):
@@ -47,4 +58,5 @@ class EmbeddingPipelineConfigManager(ConfigManager):
         return ClipConfig(**asdict(self.base_config), **data)
     
     def _create_embeddingdb_config(self, data: dict) -> EmbeddingDBConfig:
-        return EmbeddingDBConfig(**data)
+        """Create EmbeddingDBConfig with base config."""
+        return EmbeddingDBConfig(**asdict(self.base_config), **data)
