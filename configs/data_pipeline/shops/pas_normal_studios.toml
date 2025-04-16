@@ -2,16 +2,13 @@
 base_url = "https://pasnormalstudios.com/dk"
 
 [image_selectors]
-carousel = '''body > main > div > div > div:nth-child(1) > section.block-wrapper.page-offset-notification.relative.bg-\[\#f1f1f1\].lg\:h-screen.lg\:pt-0 > div.relative.transition-all.lg\:h-screen > div.relative.hidden.lg\:block.h-full''' 
+images = '''body > div.flex.min-h-screen.flex-col > main > div > div > div:nth-child(1) > section.block-wrapper.page-offset-notification.relative.bg-\[\#f1f1f1\].lg\:h-screen.lg\:pt-0 > div.relative.transition-all.lg\:h-screen > div.relative.hidden.lg\:block.h-full img[class*="aspect-[inherit]"]'''
 
 [metadata_selectors]
-title = '''body > main > div > div > div:nth-child(1) > section.block-wrapper.space-y-5.lg\:hidden > div > div > div.text-xl.font-medium.leading-5'''
-price = '''body > main > div > div > div:nth-child(1) > section.block-wrapper.space-y-5.lg\:hidden > div > div > div.hidden.md\:block > div > div > button > div > div'''
-color = '''body > main > div > div > div:nth-child(1) > section.block-wrapper.space-y-5.lg\:hidden > div > div > button > div > div.flex.items-center.gap-1 > span'''
-num_colorways = '''body > main > div > div > div:nth-child(1) > section.block-wrapper.space-y-5.lg\:hidden > div > div > button > div > div.text-\[9px\].uppercase.opacity-70 > span:nth-child(1)'''
-description = '''body > main > div > div > div:nth-child(1) > section.block-wrapper.space-y-5.lg\:hidden > div > div > div:nth-child(4) > div > div > p'''
-made_in = '''#radix-\:r7d\: > div.flex.h-full.w-full.flex-col.border-t.px-5.pt-6.md\:px-8 > div.py-12.md\:py-10 > div.flex.w-full.items-center.justify-start.border-t.border-gray-light.py-6 > div > div.flex.w-56.text-xl.font-medium.md\:text-2xl > div'''
-product_details = '''#radix-\:r7d\: > div.flex.h-full.w-full.flex-col.border-t.px-5.pt-6.md\:px-8 > div.py-12.md\:py-10 > div.flex.w-full.items-center.justify-start.border-y.border-gray-light.py-6 > div > div.flex.w-56.text-xs.leading-4'''
+title = '''body > div.flex.min-h-screen.flex-col > main > div > div > div:nth-child(1) > section.block-wrapper.page-offset-notification.relative.bg-\[\#f1f1f1\].lg\:h-screen.lg\:pt-0 > div.absolute.bottom-\[50px\].right-\[50px\].z-\[5\].hidden.max-w-\[365px\].bg-white.p-6.lg\:block > div > div.text-xl.font-medium.leading-5'''
+price = '''body > div.flex.min-h-screen.flex-col > main > div > div > div:nth-child(1) > section.block-wrapper.page-offset-notification.relative.bg-\[\#f1f1f1\].lg\:h-screen.lg\:pt-0 > div.absolute.bottom-\[50px\].right-\[50px\].z-\[5\].hidden.max-w-\[365px\].bg-white.p-6.lg\:block > div > div.hidden.md\:block > div > div > button > div > div'''
+color = '''body > div.flex.min-h-screen.flex-col > main > div > div > div:nth-child(1) > section.block-wrapper.page-offset-notification.relative.bg-\[\#f1f1f1\].lg\:h-screen.lg\:pt-0 > div.absolute.bottom-\[50px\].right-\[50px\].z-\[5\].hidden.max-w-\[365px\].bg-white.p-6.lg\:block > div > button > div > div.flex.items-center.gap-1 > span'''
+description = '''body > div.flex.min-h-screen.flex-col > main > div > div > div:nth-child(1) > section.block-wrapper.page-offset-notification.relative.bg-\[\#f1f1f1\].lg\:h-screen.lg\:pt-0 > div.absolute.bottom-\[50px\].right-\[50px\].z-\[5\].hidden.max-w-\[365px\].bg-white.p-6.lg\:block > div > div:nth-child(4) > div > div > p'''
 
 [scraper_overrides]
-rate_limit = 0.5
+rate_limit = 0.0

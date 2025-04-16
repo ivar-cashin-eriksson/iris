@@ -1,3 +1,4 @@
 # Embedding database configuration
 embedding_dim = 512
 index_type = "flat"  # Currently only "flat" is supported
+_path_template = "data/{env}/{shop_name}/embeddings"  # Template for shop-specific embedding databases
