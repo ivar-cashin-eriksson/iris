@@ -22,6 +22,8 @@ setup(
         "mplcursors>=0.5.0",
         "open-clip-torch",
         "faiss-cpu",
+        "fastapi>=0.68.0",
+        "uvicorn>=0.15.0"
     ],
     extras_require={
         "dev": [
