@@ -1,14 +1,4 @@
-// Configuration
-const config = {
-  api: {
-    baseUrl: 'http://localhost:5000',
-    dbName: 'iris_dev_pas_normal_studios'
-  },
-  ui: {
-    initialLoadDelay: 500,
-    processingDebounceDelay: 100
-  }
-};
+import { config } from './config.js';
 
 // Data Management
 class DataManager {
@@ -111,45 +101,54 @@ class UIComponents {
   static createTooltip(mask) {
     const tooltip = document.createElement('div');
     tooltip.className = 'iris-tooltip';
+    tooltip.setAttribute('data-loaded', 'false');
+    tooltip.setAttribute('data-mask', JSON.stringify(mask));
 
-    const tooltipContent = document.createElement('div');
-    tooltipContent.className = 'iris-tooltip-content';
+    // Lazy load tooltip content only when needed
+    tooltip.addEventListener('mouseenter', () => {
+      if (tooltip.getAttribute('data-loaded') === 'false') {
+        const tooltipContent = document.createElement('div');
+        tooltipContent.className = 'iris-tooltip-content';
+        
+        const imageContainer = document.createElement('div');
+        imageContainer.className = 'iris-tooltip-image-container';
 
-    const imageContainer = document.createElement('div');
-    imageContainer.className = 'iris-tooltip-image-container';
+        const productImage = document.createElement('img');
+        productImage.className = 'iris-tooltip-image';
+        productImage.loading = 'lazy';
+        productImage.src = mask.product_image || mask.product_url.replace('/products/', '/cdn/shop/products/') + '.jpg';
+        productImage.alt = mask.product_title || '';
 
-    const productImage = document.createElement('img');
-    productImage.className = 'iris-tooltip-image';
-    productImage.src = mask.product_image || mask.product_url.replace('/products/', '/cdn/shop/products/') + '.jpg';
-    productImage.alt = mask.product_title || '';
-    productImage.loading = 'lazy';
+        const infoContainer = document.createElement('div');
+        infoContainer.className = 'iris-tooltip-info';
 
-    const infoContainer = document.createElement('div');
-    infoContainer.className = 'iris-tooltip-info';
+        if (mask.product_title) {
+          const title = document.createElement('p');
+          title.className = 'iris-tooltip-title';
+          title.textContent = mask.product_title;
+          infoContainer.appendChild(title);
+        }
 
-    if (mask.product_title) {
-      const title = document.createElement('p');
-      title.className = 'iris-tooltip-title';
-      title.textContent = mask.product_title;
-      infoContainer.appendChild(title);
-    }
+        if (mask.product_price) {
+          const price = document.createElement('span');
+          price.className = 'iris-tooltip-price';
+          price.textContent = mask.product_price;
+          infoContainer.appendChild(price);
+        }
 
-    if (mask.product_price) {
-      const price = document.createElement('span');
-      price.className = 'iris-tooltip-price';
-      price.textContent = mask.product_price;
-      infoContainer.appendChild(price);
-    }
+        const button = document.createElement('span');
+        button.className = 'iris-tooltip-button';
+        button.textContent = 'View product';
 
-    const button = document.createElement('span');
-    button.className = 'iris-tooltip-button';
-    button.textContent = 'View product';
-
-    imageContainer.appendChild(productImage);
-    tooltipContent.appendChild(imageContainer);
-    tooltipContent.appendChild(infoContainer);
-    tooltipContent.appendChild(button);
-    tooltip.appendChild(tooltipContent);
+        imageContainer.appendChild(productImage);
+        tooltipContent.appendChild(imageContainer);
+        tooltipContent.appendChild(infoContainer);
+        tooltipContent.appendChild(button);
+        tooltip.appendChild(tooltipContent);
+        
+        tooltip.setAttribute('data-loaded', 'true');
+      }
+    });
 
     return tooltip;
   }
@@ -285,7 +284,7 @@ class ProductOverlayManager {
     
     if (data.masks?.length) {
       data.masks.forEach(mask => {
-        if (mask.point && mask.product_url) {
+        if (mask.point && mask.product_url && mask.product_url !== window.location.href) {
           const link = UIComponents.createProductLink(mask, container);
           overlay.appendChild(link);
         }
