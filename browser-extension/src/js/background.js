@@ -1,6 +1,4 @@
-// Configuration
-const API_BASE_URL = 'http://localhost:5000';
-const DB_NAME = 'iris_dev_pas_normal_studios';
+import { config } from './config.js';
 
 // Cache for API responses
 const imageCache = new Map();
@@ -40,9 +38,9 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 
 async function checkImage(imageUrl) {
   try {
-    const url = new URL(`${API_BASE_URL}/check-url`);
+    const url = new URL(`${config.api.baseUrl}/check-url`);
     url.searchParams.append('url', imageUrl);
-    url.searchParams.append('db_name', DB_NAME);
+    url.searchParams.append('db_name', config.api.dbName);
 
     const response = await fetch(url.toString(), {
       method: 'GET',
