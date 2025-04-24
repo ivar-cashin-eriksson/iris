@@ -1,3 +1,3 @@
 """
-Configuration management package for the Iris project.
+Configuration management package for the iris project.
 """

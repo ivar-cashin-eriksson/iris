@@ -1,6 +1,6 @@
 {
   "manifest_version": 3,
-  "name": "Iris Product Detector",
+  "name": "iris Product Detector",
   "version": "1.0",
   "description": "Detects and highlights products from segmented images",
   "permissions": [
