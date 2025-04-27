@@ -1,0 +1,14 @@
+.image-overlay {
+  position: absolute !important;
+  z-index: 1000 !important;
+  pointer-events: none !important;
+  border: olive 2px solid !important;
+}
+
+.overlay-content {
+  position: absolute !important;
+  pointer-events: auto !important;
+  z-index: 1001 !important;
+}
+
+/* Add your custom overlay styles here */
