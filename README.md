@@ -1,6 +1,6 @@
 # iris 👁️🌈🧠
 
-An intelligent product recognition system that detects and identifies products in e-commerce images using advanced computer vision. The system uses SAM (Segment Anything Model) for precise mask-based segmentation and CLIP for semantic understanding of products.
+An intelligent product recognition system that detects and identifies products in e-commerce images using advanced computer vision. The system uses SAM2 or YOLOS for precise object localization and CLIP for semantic understanding of products.
 
 ## 🌟 Features
 
@@ -15,17 +15,17 @@ An intelligent product recognition system that detects and identifies products i
 
 ```bash
 iris/
-├── browser-extension/          # Chrome extension
+├── browser-extension/                 # Chrome extension
 │
-├── iris/                       # Core Python package
-│   ├── config/                 # Configuration management
-│   ├── data_pipeline/          # Data collection & MongoDB
-│   ├── embedding_pipeline/     # CLIP embeddings
-│   ├── segmentation_pipeline/  # SAM integration
-│   ├── utils/                  # Helper functions
-│   └── web/                    # FastAPI server
+├── iris/                              # Core Python package
+│   ├── config/                        # Configuration management
+│   ├── data_pipeline/                 # Data collection & MongoDB
+│   ├── embedding_pipeline/            # CLIP embeddings
+│   ├── object_localization_pipeline/  # Object localization
+│   ├── utils/                         # Helper functions
+│   └── web/                           # FastAPI server
 │
-└── test/                       # Test notebooks
+└── test/                              # Test notebooks
 ```
 
 ## 🚀 Getting Started
@@ -85,14 +85,14 @@ uvicorn iris.web.api:app --reload --host 0.0.0.0 --port 5000
 
 Explore the notebooks in `test/`:
 - `product_linker_test.ipynb`: Test product linking
-- `segmentation_test.ipynb`: Test SAM segmentation
+- `object_localization_test.ipynb`: Test SAM object_localization
 - `embedding_test.ipynb`: Test CLIP embeddings
 - `data_utils_test.ipynb`: Test data utilities
 
 ## 💡 Core Components
 
-### Segmentation Pipeline
-Uses Meta's Segment Anything Model (SAM) to detect and segment products in images with high precision.
+### Object Localization Pipeline
+Uses Meta's Segment Anything Model or YOLOS to detect and localise products in images with high precision.
 
 ### Embedding Pipeline
 Leverages OpenAI's CLIP model to understand product semantics and create meaningful embeddings for similarity matching.

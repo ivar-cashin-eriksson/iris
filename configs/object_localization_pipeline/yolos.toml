@@ -1,0 +1,7 @@
+# Configuration for sam2
+
+_checkpoint_path = "checkpoints/yolos/"
+use_fast = true
+
+# Mask generation configuration
+[model_params]
