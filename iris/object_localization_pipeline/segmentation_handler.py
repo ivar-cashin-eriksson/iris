@@ -7,17 +7,117 @@ import numpy as np
 from PIL import Image
 from typing import List, Dict, Any, Union
 from segment_anything import sam_model_registry, SamAutomaticMaskGenerator
+from abc import ABC, abstractmethod
 import hashlib
 
-from iris.config.segmentation_pipeline_config_manager import SAM2Config
+from iris.config.object_localization_pipeline_config_manager import ObjectLocalizationModelConfig, SAM2Config, YOLOSConfig
 from iris.utils.machine_utils import get_device
 from iris.utils.image_utils import convert_mask_format, convert_image_format
 from iris.data_pipeline.mongodb_manager import MongoDBManager
 
-class SegmentationHandler:
+class ObjectLocalizationModel(ABC):
+    """Base class for object localization models."""
+
+    def __init__(self, model_config: ObjectLocalizationModelConfig):
+        """
+        Initialize the model with configuration parameters.
+        
+        Args:
+            model_config: Configuration object containing all parameters
+        """
+        self.model_config = model_config
+
+    @abstractmethod
+    def detect_objects(
+        self, 
+        image: Union[np.ndarray, Image.Image]
+    ) -> List[Dict[str, Any]]:
+        """
+        Perform object localization on an image.
+        
+        Args:
+            image: Input image as numpy array or PIL Image.
+            
+        Returns:
+            List of dictionaries containing mask information.
+        """
+        pass
+
+class YOLOSModel(ObjectLocalizationModel):
+    """YOLOS model for object localization."""
+
+    def __init__(self, model_config: YOLOSConfig):
+        """
+        Initialize the YOLOS model with configuration parameters.
+        
+        Args:
+            model_config: Configuration object containing all parameters
+        """
+        super().__init__(model_config)
+        # Placeholder for YOLOS model initialization
+        pass
+
+    def detect_objects(
+            self, 
+            image: Union[np.ndarray, Image.Image]
+        ) -> List[Dict[str, Any]]:
+        """
+        Segment an image using the YOLOS model.
+        
+        Args:
+            image: Input image as numpy array or PIL Image.
+            
+        Returns:
+            List of dictionaries containing mask information.
+        """
+        # Placeholder for YOLOS segmentation logic
+        pass
+
+class SAM2Model(ObjectLocalizationModel):
+    """SAM2 model for object localization."""
+
+    def __init__(self, model_config: SAM2Config):
+        """
+        Initialize the SAM2 model with configuration parameters.
+        
+        Args:
+            model_config: Configuration object containing all parameters
+        """
+        super().__init__(model_config)
+
+        # Initialize SAM2 model
+        sam2 = sam_model_registry[
+            model_config.model_type
+        ](checkpoint=self.model_config.get_checkpoint_path())
+        sam2.to(self.device)
+        sam2.eval()
+        
+        # Initialize mask generator with configuration parameters
+        self.mask_generator = SamAutomaticMaskGenerator(
+            model=sam2,
+            **model_config.model_params
+        )
+
+    def detect_objects(
+            self, 
+            image: Union[np.ndarray, Image.Image]
+        ) -> List[Dict[str, Any]]:
+        """
+        Segment an image using the SAM2 model.
+        
+        Args:
+            image: Input image as numpy array or PIL Image.
+            
+        Returns:
+            List of dictionaries containing mask information.
+        """
+        # Placeholder for SAM2 segmentation logic
+        pass
+
+class ObjectLocalizationHandler:
     """Handles image segmentation using SAM2 model."""
     
-    def __init__(self, sam2_config: SAM2Config):
+    def __init__(self, model_config: ObjectLocalizationModelConfig):
         """
         Initialize the SegmentationHandler.
         
@@ -25,9 +125,8 @@ class SegmentationHandler:
             sam2_config: SegmentationConfig object containing all 
                          configuration parameters
         """
-        self.sam2_config = sam2_config
-        self.device = get_device(self.sam2_config.device)
-        self.target_size = 256  # Maximum size for the longest dimension
+        self.model_config = model_config
+        self.device = get_device(self.model_config.device)
         
         # Configure CUDA settings if available
         if self.device.type == "cuda":
@@ -36,19 +135,12 @@ class SegmentationHandler:
                 torch.backends.cuda.matmul.allow_tf32 = True
                 torch.backends.cudnn.allow_tf32 = True
         
-        # Initialize SAM2 model
-        self.sam2 = sam_model_registry[
-            self.sam2_config.model_type
-        ](checkpoint=self.sam2_config.get_checkpoint_path())
-        self.sam2.to(self.device)
-        self.sam2.eval()
+        # Initialize Object Localization Model
+        if isinstance(self.model_config, YOLOSConfig):
+            self.model = YOLOSModel(self.model_config)
+        elif isinstance(self.model_config, SAM2Config):
+            self.model = SAM2Model(self.model_config)
         
-        # Initialize mask generator with configuration parameters
-        self.mask_generator = SamAutomaticMaskGenerator(
-            model=self.sam2,
-            **self.sam2_config.mask_generator_params
-        )
-    
     def _downsample_image(self, image: np.ndarray) -> tuple[np.ndarray, tuple[int, int]]:
         """
         Downsample image while preserving aspect ratio.
@@ -62,8 +154,12 @@ class SegmentationHandler:
         height, width = image.shape[:2]
         original_size = (height, width)
         
+        # If scaling is deactivated, return original image and size
+        if self.model_config.max_image_size is None:
+            return image, original_size
+        
         # Calculate scaling factor
-        scale = self.target_size / max(height, width)
+        scale = self.model_config.max_image_size / max(height, width)
         if scale >= 1:  # Don't upscale
             return image, original_size
             

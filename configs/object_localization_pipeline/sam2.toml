@@ -2,10 +2,10 @@
 
 # NOTE: Remember to update checkpoint and model together
 model_type = "vit_b"
-_checkpoint_path = "checkpoints/sam_vit_b_01ec64.pth"
+_checkpoint_path = "checkpoints/sam2/sam_vit_b_01ec64.pth"
 
 # Mask generation configuration
-[mask_generator_params]
+[model_params]
 points_per_side = 16  # Only one of points_per_side and point_grids allowed
 # point_grids = [32, 16, 8, 4]  # Only one of points_per_side and point_grids allowed
 points_per_batch = 64

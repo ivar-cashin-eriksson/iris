@@ -1,0 +1,5 @@
+# Configuration for the overarching object localization pipeline
+
+# Remember to change model_type and model_config if you are using a different model
+model_type = "yolos"
+model_config = "yolos.toml"
