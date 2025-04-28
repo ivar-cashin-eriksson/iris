@@ -1,6 +1,6 @@
 # iris 👁️🌈🧠
 
-An intelligent product recognition system that detects and identifies products in e-commerce images using advanced computer vision. The system uses SAM2 or YOLOS for precise object localization and CLIP for semantic understanding of products.
+An intelligent product recognition system that detects and identifies products in e-commerce images using advanced computer vision. The system uses SAM2 or YOLOS for precise localization and CLIP for semantic understanding of products.
 
 ## 🌟 Features
 
@@ -15,17 +15,17 @@ An intelligent product recognition system that detects and identifies products i
 
 ```bash
 iris/
-├── browser-extension/                 # Chrome extension
+├── browser-extension/           # Chrome extension
 │
-├── iris/                              # Core Python package
-│   ├── config/                        # Configuration management
-│   ├── data_pipeline/                 # Data collection & MongoDB
-│   ├── embedding_pipeline/            # CLIP embeddings
-│   ├── object_localization_pipeline/  # Object localization
-│   ├── utils/                         # Helper functions
-│   └── web/                           # FastAPI server
+├── iris/                        # Core Python package
+│   ├── config/                  # Configuration management
+│   ├── data_pipeline/           # Data collection & MongoDB
+│   ├── embedding_pipeline/      # CLIP embeddings
+│   ├── localization_pipeline/   # Object localization
+│   ├── utils/                   # Helper functions
+│   └── web/                     # FastAPI server
 │
-└── test/                              # Test notebooks
+└── test/                        # Test notebooks
 ```
 
 ## 🚀 Getting Started
@@ -85,7 +85,7 @@ uvicorn iris.web.api:app --reload --host 0.0.0.0 --port 5000
 
 Explore the notebooks in `test/`:
 - `product_linker_test.ipynb`: Test product linking
-- `object_localization_test.ipynb`: Test SAM object_localization
+- `localization_test.ipynb`: Test object localization
 - `embedding_test.ipynb`: Test CLIP embeddings
 - `data_utils_test.ipynb`: Test data utilities
 

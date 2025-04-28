@@ -2,6 +2,7 @@
 
 _checkpoint_path = "checkpoints/yolos/"
 use_fast = true
+confidence_threshold = 0.3
 
 # Mask generation configuration
 [model_params]

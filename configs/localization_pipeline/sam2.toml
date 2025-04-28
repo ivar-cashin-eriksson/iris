@@ -3,6 +3,7 @@
 # NOTE: Remember to update checkpoint and model together
 model_type = "vit_b"
 _checkpoint_path = "checkpoints/sam2/sam_vit_b_01ec64.pth"
+mask_format = "rle"  # Options: "binary", "rle"
 
 # Mask generation configuration
 [model_params]
