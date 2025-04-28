@@ -2,7 +2,11 @@
   position: absolute !important;
   z-index: 1000 !important;
   pointer-events: none !important;
-  border: olive 2px solid !important;
+  border: green 2px solid !important;
+}
+
+.image-overlay.no-products {
+  border-color: red !important;
 }
 
 .overlay-content {
@@ -10,5 +14,70 @@
   pointer-events: auto !important;
   z-index: 1001 !important;
 }
+
+.iris-link {
+  position: absolute;
+  z-index: 1002 !important;
+  pointer-events: auto !important;
+  top:0;
+  left:0;
+}
+
+.iris-circle {
+  transform: translate(-13px, -13px) !important;
+  height: 26px !important;
+  width: 26px !important;
+  border-radius: 50%;
+  background-color: rgba(0, 0, 0, 0.5) !important;
+  transition: all 0.2s ease-out !important;
+  animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite !important;
+  position: absolute;
+}
+
+.iris-link:hover .iris-circle {
+  animation: none !important;
+  height: 35px;
+  width: 35px;
+}
+
+.iris-circle::after {
+  content: '';
+  z-index: 1 !important;
+  height: 4px !important;
+  width: 4px !important;
+  border-radius: 50%;
+  background-color: white !important;
+  position: absolute;
+  top: 50%;
+  left: 50%;
+}
+
+.iris-product-container {
+  display: none;
+}
+
+.iris-link:hover .iris-product-container {
+  display: flex;
+  flex-direction: row;
+  background: white;
+  border-radius: 3px;
+  position: absolute;
+  gap: 5px;
+  top: 20px;
+  left: 20px;
+}
+
+.iris-product-image {
+  width: 20px;
+  height: 20px;
+}
+
+.iris-product-info {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+
 
 /* Add your custom overlay styles here */
