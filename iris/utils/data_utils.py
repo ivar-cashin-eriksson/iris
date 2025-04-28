@@ -1,4 +1,3 @@
-from typing import List, Tuple, Optional, Union
 import io
 import base64
 import numpy as np
@@ -13,17 +12,17 @@ from iris.data_pipeline.mongodb_manager import MongoDBManager
 # Shared Utilities
 # -----------------------------
 
-def generate_distinct_color(idx: int) -> Tuple[int, int, int]:
+def generate_distinct_color(idx: int) -> tuple[int, int, int]:
     hsv = (idx * 0.618033988749895 % 1.0, 0.5, 0.95)
     return tuple((int(c * 255) for c in colorsys.hsv_to_rgb(*hsv)))
 
-def image_to_base64(img: Union[np.ndarray, Image.Image]) -> str:
+def image_to_base64(img: np.ndarray | Image.Image) -> str:
     img = convert_image_format(img, target_format="pil")
     buffered = io.BytesIO()
     img.save(buffered, format="PNG")
     return base64.b64encode(buffered.getvalue()).decode()
 
-def render_metadata_block(metadata: List[Tuple[str, str]], inline: bool=False) -> str:
+def render_metadata_block(metadata: list[tuple[str, str]], inline: bool=False) -> str:
     block = ""
     for label, content in metadata:
         if inline:
@@ -47,11 +46,10 @@ def render_metadata_block(metadata: List[Tuple[str, str]], inline: bool=False) -
 # Image Rendering
 # -----------------------------
 
-def render_mask_card(mask_data: dict, idx: int) -> str:
+def render_mask_card(mask_data: dict, color: tuple[int, int, int]) -> str:
     binary_mask = convert_mask_format(mask_data["segmentation"], target_format="binary")
     bbox = mask_data.get("bbox", [0, 0, 1, 1])
     x, y, w, h = bbox
-    color = generate_distinct_color(idx)
 
     mask_rgb = Image.new("RGB", (binary_mask.shape[1], binary_mask.shape[0]), color=(0, 0, 0))
     overlay = Image.fromarray(np.uint8(binary_mask) * 255, mode="L")
@@ -72,13 +70,13 @@ def render_mask_card(mask_data: dict, idx: int) -> str:
     mask_base64 = image_to_base64(mask_rgb)
 
     metadata = [
-        ("Mask Hash:", mask_data["localization_hash"]),
-        ("Crop Box:", mask_data["crop_box"]),
-        ("Bounding Box:", f"[{x}, {y}, {w}, {h}]"),
-        ("Mask Area:", mask_data["area"]),
+        ("Mask Hash:", mask_data['localization_hash']),
+        ("Predicted IoU:", f"{mask_data['predicted_iou']:.3f}"),
+        ("Crop Box:", mask_data['crop_box']),
+        ("BBox:", f"[{x:.3f}, {y:.3f}, {w:.3f}, {h:.3f}]"),
+        ("Mask Area:", f"{mask_data['area']:.3f}"),
         ("Point Coords:", f"[{point_coords[0]}, {point_coords[1]}]"),
-        ("Predicted IoU:", mask_data["predicted_iou"]),
-        ("Stability Score:", mask_data["stability_score"]),
+        ("Stability Score:", f"{mask_data['stability_score']:.3f}"),
     ]
 
     return f"""
@@ -90,45 +88,139 @@ def render_mask_card(mask_data: dict, idx: int) -> str:
     </div>
     """
 
-
-def render_mask_grid(masks: list, columns: int, sort_key: str, reverse: bool) -> str:
-    sorted_indices = sorted(
-        range(len(masks)),
-        key=lambda i: masks[i][sort_key],
-        reverse=reverse
-    )
-
-    mask_cards = "\n".join(
-        render_mask_card(masks[idx], idx)
-        for idx in sorted_indices
-    )
-
+def render_bbox_card(img: Image.Image, bbox_data: dict, color: tuple[int, int, int]) -> str:
+    x, y, w, h = [float(c) for c in bbox_data["bbox"]]
+    
+    # Convert relative coordinates to absolute
+    img_w, img_h = img.size
+    abs_x = int(x * img_w)
+    abs_y = int(y * img_h)
+    abs_w = int(w * img_w)
+    abs_h = int(h * img_h)
+    
+    # Extract the bbox region
+    bbox_img = img.crop((abs_x, abs_y, abs_x + abs_w, abs_y + abs_h))
+    
+    # Draw rectangle around the bbox
+    draw = ImageDraw.Draw(bbox_img)
+    draw.rectangle([0, 0, abs_w-1, abs_h-1], outline=color, width=2)
+    
+    bbox_base64 = image_to_base64(bbox_img)
+    
+    metadata = [
+        ("Hash:", bbox_data["localization_hash"]),
+        ("Label:", bbox_data["label"]),
+        ("Score:", f"{bbox_data['score']:.3f}"),
+        ("BBox:", f"[{x:.3f}, {y:.3f}, {w:.3f}, {h:.3f}]"),
+        ("Area:", f"{(w * h):.3f}")
+    ]
+    
+    # The container will be fixed size, image will scale within it
     return f"""
-    <div style='margin-top: 40px;'>
-        <div style='display: grid; grid-template-columns: repeat({columns}, minmax(0, 1fr)); gap: 20px;'>
-            {mask_cards}
+    <div style='display: flex; align-items: start; gap: 10px;'>
+        <div style='width: 100px; height: 100px; display: flex; align-items: center; justify-content: center;'>
+            <img src="data:image/png;base64,{bbox_base64}" 
+                 style="max-width: 100%; max-height: 100%; object-fit: contain;">
+        </div>
+        <div style='color: black; font-size: 11px;'>
+            {render_metadata_block(metadata, inline=True)}
         </div>
     </div>
     """
 
-def overlay_masks_on_image(img: Image.Image, masks: list) -> Image.Image:
-    overlay = Image.new("RGBA", img.size, (0, 0, 0, 0))
-    for idx, mask_data in enumerate(masks):
-        binary_mask = convert_mask_format(mask_data["segmentation"], target_format="binary")
-        color = generate_distinct_color(idx) + (90,)  # Add alpha channel
-        mask_img = Image.fromarray(np.uint8(binary_mask) * 255, mode="L")
-        color_layer = Image.new("RGBA", img.size, color)
-        overlay.paste(color_layer, mask=mask_img)
-    return Image.alpha_composite(img, overlay)
+def render_localization_grids(img: Image.Image, localizations: list, columns: int) -> str:
+
+    bbox_cards = []
+    mask_cards = []
+    for idx, localization in enumerate(localizations):
+        color = generate_distinct_color(idx)
+        match localization['model_type']:
+            case "yolos":
+                bbox_cards.append(render_bbox_card(img, localization, color))
+            case "sam2":
+                mask_cards.append(render_mask_card(localization, color))
+
+    if bbox_cards:
+        bbox_cards = "\n".join(bbox_cards)
+        bboxes_grid_html = f"""<h3 style='color: black; margin-bottom: 20px;'>Bounding Boxes</h3>
+            <div style='display: grid; grid-template-columns: repeat({columns}, minmax(0, 1fr)); gap: 20px;'>
+                {bbox_cards}
+            </div>"""
+    else:
+        bboxes_grid_html = ""
+        
+    if mask_cards:
+        mask_cards = "\n".join(mask_cards)
+        masks_grid_html = f"""<h3 style='color: black; margin-bottom: 20px;'>Masks</h3>
+            <div style='display: grid; grid-template-columns: repeat({columns}, minmax(0, 1fr)); gap: 20px;'>
+                {mask_cards}
+            </div>"""
+    else:
+        masks_grid_html = ""
+
+    return f"""
+    <div style='margin-top: 40px;'>
+        {bboxes_grid_html}
+        {masks_grid_html}
+    </div>
+    """
+
+def overlay_localizations_on_image(img: Image.Image, localizations: list) -> Image.Image:
+    # Create separate overlays for masks and boxes
+    box_overlay = Image.new("RGBA", img.size, (0, 0, 0, 0))
+    mask_overlay = Image.new("RGBA", img.size, (0, 0, 0, 0))
+    box_draw = ImageDraw.Draw(box_overlay)
+    
+    for idx, localization in enumerate(localizations):
+        color = generate_distinct_color(idx)
+        match localization['model_type']:
+            case "yolos":
+                # Add bounding box with label and score
+                x, y, w, h = [float(c) for c in localization["bbox"]]
+                abs_x = int(x * img.size[0])
+                abs_y = int(y * img.size[1])
+                abs_w = int(w * img.size[0])
+                abs_h = int(h * img.size[1])
+                
+                # Draw box
+                box_color = color + (255,)  # Full opacity for box
+                box_draw.rectangle(
+                    [abs_x, abs_y, abs_x + abs_w, abs_y + abs_h],
+                    outline=box_color,
+                    width=2
+                )
+                
+                # Draw label background and text
+                label = f"{localization['label']} ({localization['score']:.2f})"
+                text_bbox = box_draw.textbbox((0, 0), label)
+                text_width = text_bbox[2] - text_bbox[0]
+                text_height = text_bbox[3] - text_bbox[1]
+                
+                text_bg = Image.new('RGBA', (text_width + 6, text_height + 4), box_color)
+                box_overlay.paste(text_bg, (abs_x, abs_y - text_height - 4))
+                box_draw.text(
+                    (abs_x + 3, abs_y - text_height - 2),
+                    label,
+                    fill=(255, 255, 255, 255)
+                )
+                
+            case "sam2":
+                # Add mask overlay with bounding box
+                binary_mask = convert_mask_format(localization["segmentation"], target_format="binary")
+                color_with_alpha = color + (90,)  # Add alpha channel
+                mask_img = Image.fromarray(np.uint8(binary_mask) * 255, mode="L")
+                color_layer = Image.new("RGBA", img.size, color_with_alpha)
+                mask_overlay.paste(color_layer, mask=mask_img)
+    
+    combined_overlay = Image.alpha_composite(mask_overlay, box_overlay)
+    return Image.alpha_composite(img, combined_overlay)
 
 def display_image_summary(
     mongodb_manager: MongoDBManager,
     image_hash: str,
     columns: int = 3,
-    sort_key: str = "predicted_iou",
-    reverse: bool = True,
-    show_masks: bool = True
-):
+    show_localizations: bool = True
+) -> None:
     image_data = mongodb_manager.get_collection(
         mongodb_manager.mongodb_config.image_metadata_collection
     ).find_one({"image_hash": image_hash})
@@ -136,44 +228,65 @@ def display_image_summary(
     if image_data is None:
         raise ValueError(f"No image found with hash: {image_hash}")
 
-    # Make main images
+    # Sort localizations based on class and scores
+    if show_localizations and "localizations" in image_data:
+        localizations = image_data["localizations"]
+        bboxes = [loc for loc in localizations if loc["model_type"] == "yolos"]
+        masks = [loc for loc in localizations if loc["model_type"] == "sam2"]
+
+        bboxes = sorted(
+            bboxes,
+            key=lambda i: i['score'],
+            reverse=True
+        )
+
+        masks = sorted(
+            masks,
+            key=lambda i: i['predicted_iou'],
+            reverse=True
+        )
+
+        localizations = bboxes + masks
+    else:
+        show_localizations = False    
+
     with Image.open(image_data['local_path']).convert("RGBA") as img:
-        if show_masks and "localizations" in image_data:
-            masked_img = overlay_masks_on_image(img.copy(), image_data["localizations"])
+        # Make main images
+        if show_localizations:
+            localized_img = overlay_localizations_on_image(img.copy(), localizations)
         else:
-            masked_img = img.copy()
+            localized_img = img.copy()
 
         img_str = image_to_base64(img)
-        masked_str = image_to_base64(masked_img)
+        localized_str = image_to_base64(localized_img)
+
+        # Localization grid block
+        localization_cards_html = ""
+        if show_localizations:
+            localization_cards_html = render_localization_grids(
+                img=img,
+                localizations=localizations,
+                columns=columns
+            )
 
     # Image block
     image_display_block = f"""
         <img src="data:image/png;base64,{img_str}" style="max-width: 200px; height: auto;">
     """
-    if show_masks and "localizations" in image_data:
+    if show_localizations and "localizations" in image_data:
         image_display_block += f"""
-        <img src="data:image/png;base64,{masked_str}" style="max-width: 200px; height: auto;">
+        <img src="data:image/png;base64,{localized_str}" style="max-width: 200px; height: auto;">
         """
 
     # Metadata block
     metadata = [
         ("Image Hash:", image_data['image_hash']),
-        ("Num Masks:", len(image_data['localizations']) if 'localizations' in image_data else 'Image not segmented.'),
+        ("Num Localizations:", len(image_data['localizations']) if 'localizations' in image_data else 'Image not localized.'),
         ("Local Path:", f'<a href="{image_data["local_path"]}" style="color: #0066cc;">{image_data["local_path"]}</a>'),
         ("Original URL:", f'<a href="{image_data["original_url"]}" style="color: #0066cc;">{image_data["original_url"]}</a>'),
         ("Source Product:", image_data['source_product']),
         ("Created At:", image_data['created_at'])
     ]
-
-    # Mask block
-    mask_cards_html = ""
-    if show_masks and "localizations" in image_data:
-        mask_cards_html = render_mask_grid(
-            masks=image_data["localizations"],
-            columns=columns,
-            sort_key=sort_key,
-            reverse=reverse
-        )
 
     # Assemble HTML
     html = f"""
@@ -200,7 +313,7 @@ def display_image_summary(
             {render_metadata_block(metadata)}
             </div>
         </div>
-        {mask_cards_html}
+        {localization_cards_html}
     </div>
     """
 
