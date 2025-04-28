@@ -20,7 +20,8 @@
     "web_accessible_resources": [{
       "resources": [
         "images/*",
-        "js/content.js"
+        "js/content.js",
+        "js/config.js"
       ],
       "matches": ["<all_urls>"]
     }],
@@ -28,4 +29,4 @@
       "48": "images/icon48.png",
       "128": "images/icon128.png"
     }
-  }
+}
