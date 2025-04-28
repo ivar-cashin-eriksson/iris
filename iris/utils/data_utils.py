@@ -72,7 +72,7 @@ def render_mask_card(mask_data: dict, idx: int) -> str:
     mask_base64 = image_to_base64(mask_rgb)
 
     metadata = [
-        ("Mask Hash:", mask_data["mask_hash"]),
+        ("Mask Hash:", mask_data["localization_hash"]),
         ("Crop Box:", mask_data["crop_box"]),
         ("Bounding Box:", f"[{x}, {y}, {w}, {h}]"),
         ("Mask Area:", mask_data["area"]),
@@ -138,8 +138,8 @@ def display_image_summary(
 
     # Make main images
     with Image.open(image_data['local_path']).convert("RGBA") as img:
-        if show_masks and "masks" in image_data:
-            masked_img = overlay_masks_on_image(img.copy(), image_data["masks"])
+        if show_masks and "localizations" in image_data:
+            masked_img = overlay_masks_on_image(img.copy(), image_data["localizations"])
         else:
             masked_img = img.copy()
 
@@ -150,7 +150,7 @@ def display_image_summary(
     image_display_block = f"""
         <img src="data:image/png;base64,{img_str}" style="max-width: 200px; height: auto;">
     """
-    if show_masks and "masks" in image_data:
+    if show_masks and "localizations" in image_data:
         image_display_block += f"""
         <img src="data:image/png;base64,{masked_str}" style="max-width: 200px; height: auto;">
         """
@@ -158,7 +158,7 @@ def display_image_summary(
     # Metadata block
     metadata = [
         ("Image Hash:", image_data['image_hash']),
-        ("Num Masks:", len(image_data['masks']) if 'masks' in image_data else 'Image not segmented.'),
+        ("Num Masks:", len(image_data['localizations']) if 'localizations' in image_data else 'Image not segmented.'),
         ("Local Path:", f'<a href="{image_data["local_path"]}" style="color: #0066cc;">{image_data["local_path"]}</a>'),
         ("Original URL:", f'<a href="{image_data["original_url"]}" style="color: #0066cc;">{image_data["original_url"]}</a>'),
         ("Source Product:", image_data['source_product']),
@@ -167,9 +167,9 @@ def display_image_summary(
 
     # Mask block
     mask_cards_html = ""
-    if show_masks and "masks" in image_data:
+    if show_masks and "localizations" in image_data:
         mask_cards_html = render_mask_grid(
-            masks=image_data["masks"],
+            masks=image_data["localizations"],
             columns=columns,
             sort_key=sort_key,
             reverse=reverse
@@ -312,7 +312,7 @@ def print_image_summary(
     print(f"{' ' * int((total_width - len('Image Summary')) / 2)}Image Summary")
     print(separator)
     print(f"{'Image Hash:':<{first_column_width}} {image_data['image_hash']}")
-    print(f"{'Num Masks:':<{first_column_width}} {len(image_data.get('masks', [])) if 'masks' in image_data else 'Image not segmented.'}")
+    print(f"{'Num Masks:':<{first_column_width}} {len(image_data.get('localizations', [])) if 'localizations' in image_data else 'Image not segmented.'}")
     print(f"{'HTML Location:':<{first_column_width}} {image_data['html_location']}")
     print(f"{'Local Path:':<{first_column_width}} {image_data['local_path']}")
     print(f"{'Original URL:':<{first_column_width}} {image_data['original_url']}")
