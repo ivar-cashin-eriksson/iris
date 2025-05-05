@@ -1,0 +1,10 @@
+# Configuration for sam2
+
+_checkpoint_path = "checkpoints/yolov8m.pt"
+
+# Mask generation configuration
+[model_params]
+conf = 0.3
+save = false
+line_thickness = 2
+hide_labels = false

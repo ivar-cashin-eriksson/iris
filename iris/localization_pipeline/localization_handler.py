@@ -6,12 +6,13 @@ import torch
 import numpy as np
 from PIL import Image
 from typing import Any
+from ultralytics import YOLO
 from transformers import AutoProcessor, YolosForObjectDetection, YolosImageProcessor
 from segment_anything import sam_model_registry, SamAutomaticMaskGenerator
 from abc import ABC, abstractmethod
 import hashlib
 
-from iris.config.localization_pipeline_config_manager import LocalizationModelConfig, SAM2Config, YolosConfig
+from iris.config.localization_pipeline_config_manager import LocalizationModelConfig, SAM2Config, YoloConfig, YolosConfig
 from iris.utils.machine_utils import get_device
 from iris.utils.image_utils import convert_mask_format, convert_image_format
 from iris.data_pipeline.mongodb_manager import MongoDBManager
@@ -99,8 +100,85 @@ class LocalizationModel(ABC):
 
         return result
 
+class BoundingBoxModel(LocalizationModel):
+    """Base class for models that only produce bounding boxes."""
 
-class YolosModel(LocalizationModel):
+    def generate_localization_hash(
+        self, 
+        image_hash: str, 
+        localization_data: dict[str, Any]
+    ) -> str:
+        """
+        Generate a unique hash for an object localization based on parent image
+        hash and bounding box properties.
+        
+        Args:
+            image_hash (str): Hash of the parent image
+            localization_data (dict): Dictionary containing object localization
+                                      information
+            
+        Returns:
+            str: Unique hash for the object localization
+        """
+        # Create a string combining relevant mask properties
+        mask_string = (
+            f"{image_hash}"
+            f"{str(localization_data['bbox'])}"
+        )
+        
+        # Generate MD5 hash
+        return hashlib.md5(mask_string.encode()).hexdigest()
+    
+class YoloModel(BoundingBoxModel):
+    """YOlO model for object localization."""
+
+    def __init__(self, model_config: YoloConfig):
+        """
+        Initialize the YOLO model with configuration parameters.
+        
+        Args:
+            model_config (YolosConfig): Configuration object containing all parameters
+        """
+        self.model_config = model_config
+        
+        # Initialize model and processor from local checkpoint
+        self.model = YOLO("../checkpoints/detect/train/weights/best.pt")
+
+    def localize_objects(self, image: np.ndarray) -> list[dict[str, Any]]:
+        """
+        Segment an image using the YOLO model.
+        
+        Args:
+            image: Input image as numpy array in RGB format.
+                        
+        Returns:
+            List of dictionaries containing mask information.
+        """
+
+        # Run prediction (YOLO expects BGR format)
+        results = self.model.predict(
+            source=image[..., ::-1],  # Convert to BGR format
+            **self.model_config.model_params
+        )
+        boxes = results[0].boxes
+
+        # Convert detections to standard format with relative coordinates
+        detections = []
+        for score, label, box in zip(boxes.conf, boxes.cls, boxes.xyxyn):
+            box = box.cpu().tolist()
+            detection = {
+                'label': results[0].names[label.item()],
+                'label_id': label.item(),
+                'score': score.item(),
+                'bbox': [box[0], box[1], box[2] - box[0], box[3] - box[1]]
+            }
+            
+            detections.append(detection)
+
+        return detections
+
+
+class YolosModel(BoundingBoxModel):
     """YOLOS model for object localization."""
 
     def __init__(self, model_config: YolosConfig):
@@ -121,10 +199,7 @@ class YolosModel(LocalizationModel):
         )
         self.model.to(get_device(self.model_config.device))
 
-    def localize_objects(
-            self, 
-            image: np.ndarray
-        ) -> list[dict[str, Any]]:
+    def localize_objects(self, image: np.ndarray) -> list[dict[str, Any]]:
         """
         Segment an image using the YOLOS model.
         
@@ -156,6 +231,7 @@ class YolosModel(LocalizationModel):
             box = box.cpu().tolist()
             detection = {
                 'label': self.model.config.id2label[label.item()],
+                'label_id': label.item(),
                 'score': score.item(),
                 'bbox': [box[0], box[1], box[2] - box[0], box[3] - box[1]]
             }
@@ -167,28 +243,6 @@ class YolosModel(LocalizationModel):
             detections.append(detection)
 
         return detections
-
-    def generate_localization_hash(self, image_hash, localization_data):
-        """
-        Generate a unique hash for an object localization based on parent image
-        hash and bounding box properties.
-        
-        Args:
-            image_hash (str): Hash of the parent image
-            localization_data (dict): Dictionary containing object localization
-                                      information
-            
-        Returns:
-            str: Unique hash for the object localization
-        """
-        # Create a string combining relevant mask properties
-        mask_string = (
-            f"{image_hash}"
-            f"{str(localization_data['bbox'])}"
-        )
-        
-        # Generate MD5 hash
-        return hashlib.md5(mask_string.encode()).hexdigest()
 
 
 class SAM2Model(LocalizationModel):
@@ -216,7 +270,11 @@ class SAM2Model(LocalizationModel):
             **self.model_config.model_params
         )
 
-    def generate_localization_hash(self, image_hash: str, localization_data: dict[str, Any]) -> str:
+    def generate_localization_hash(
+        self, 
+        image_hash: str, 
+        localization_data: dict[str, Any]
+    ) -> str:
         """
         Generate a unique hash for a mask based on image hash and mask properties.
         
@@ -326,6 +384,8 @@ class LocalizationHandler:
         
         # Initialize Object Localization Model
         match self.model_config:
+            case YoloConfig():
+                self.model: LocalizationModel = YoloModel(self.model_config)
             case YolosConfig():
                 self.model: LocalizationModel = YolosModel(self.model_config)
             case SAM2Config():
@@ -420,8 +480,8 @@ class LocalizationHandler:
 
             # Add model type info to localization
             match self.model:
-                case YolosModel():
-                    model_type = "yolos"
+                case BoundingBoxModel():
+                    model_type = "bbox"
                 case SAM2Model():
                     model_type = "sam2"
                 case _:

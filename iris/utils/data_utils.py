@@ -135,7 +135,7 @@ def render_localization_grids(img: Image.Image, localizations: list, columns: in
     for idx, localization in enumerate(localizations):
         color = generate_distinct_color(idx)
         match localization['model_type']:
-            case "yolos":
+            case "bbox":
                 bbox_cards.append(render_bbox_card(img, localization, color))
             case "sam2":
                 mask_cards.append(render_mask_card(localization, color))
@@ -174,7 +174,7 @@ def overlay_localizations_on_image(img: Image.Image, localizations: list) -> Ima
     for idx, localization in enumerate(localizations):
         color = generate_distinct_color(idx)
         match localization['model_type']:
-            case "yolos":
+            case "bbox":
                 # Add bounding box with label and score
                 x, y, w, h = [float(c) for c in localization["bbox"]]
                 abs_x = int(x * img.size[0])
@@ -231,7 +231,7 @@ def display_image_summary(
     # Sort localizations based on class and scores
     if show_localizations and "localizations" in image_data:
         localizations = image_data["localizations"]
-        bboxes = [loc for loc in localizations if loc["model_type"] == "yolos"]
+        bboxes = [loc for loc in localizations if loc["model_type"] == "bbox"]
         masks = [loc for loc in localizations if loc["model_type"] == "sam2"]
 
         bboxes = sorted(

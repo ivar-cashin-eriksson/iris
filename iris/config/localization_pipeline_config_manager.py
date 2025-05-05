@@ -26,6 +26,10 @@ class LocalizationModelConfig(ABC, BaseConfig):
         return Path(self.base_path) / self._checkpoint_path
 
 @dataclass(frozen=True, kw_only=True)
+class YoloConfig(LocalizationModelConfig):
+    """Configuration for YOLO model."""
+
+@dataclass(frozen=True, kw_only=True)
 class YolosConfig(LocalizationModelConfig):
     """Configuration for YOLOS model."""
 
@@ -72,11 +76,14 @@ class LocalizationPipelineConfigManager(ConfigManager):
         self.model_config = self._create_model_config(model_data)
 
     def _create_model_config(self, data: dict) -> LocalizationModelConfig:
-        if self._localization_base_config['model_type'] == 'yolos':
-            return YolosConfig(**asdict(self.base_config), **data)
-        elif self._localization_base_config['model_type'] == 'sam2':
-            return SAM2Config(**asdict(self.base_config), **data)
-        else:
-            raise ValueError(
-                f"Unsupported model type: {self._localization_base_config['model_type']}"
-            )
+        match self._localization_base_config['model_type']:
+            case 'yolo':
+                return YoloConfig(**asdict(self.base_config), **data)
+            case 'yolos':
+                return YolosConfig(**asdict(self.base_config), **data)
+            case 'sam2':
+                return SAM2Config(**asdict(self.base_config), **data)
+            case _:
+                raise ValueError(
+                    f"Unsupported model type: {self._localization_base_config['model_type']}"
+                )

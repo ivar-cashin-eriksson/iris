@@ -6,3 +6,4 @@ confidence_threshold = 0.3
 
 # Mask generation configuration
 [model_params]
+# Not currently used
