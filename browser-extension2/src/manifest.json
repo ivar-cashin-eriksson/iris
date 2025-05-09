@@ -21,7 +21,8 @@
       "resources": [
         "images/*",
         "js/content.js",
-        "js/config.js"
+        "js/config.js",
+        "js/uiComponents.js"
       ],
       "matches": ["<all_urls>"]
     }],

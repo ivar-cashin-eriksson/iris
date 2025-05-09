@@ -25,7 +25,7 @@ client = MongoClient("mongodb+srv://test:test@iris-cluster.andes.mongodb.net/?re
 @app.get("/check-url")
 async def check_url(url: str = Query(...), db_name: str = Query(...)):
     """
-    Check if a URL exists in the image_metadata collection and return mask information.
+    Check if a URL exists in the image_metadata collection and return localization information.
     """
     try:
         db = client[db_name]
@@ -34,29 +34,29 @@ async def check_url(url: str = Query(...), db_name: str = Query(...)):
         if not image_doc:
             return {
                 "exists": False,
-                "has_product_masks": False,
-                "masks": []
+                "has_product_localizations": False,
+                "localizations": []
             }
 
-        # Check if any masks have product_hash
-        has_product_masks = False
-        if "masks" in image_doc and image_doc["masks"]:
-            has_product_masks = any(
-                "product_hash" in mask 
-                for mask in image_doc["masks"]
+        # Check if any localizations have product_hash
+        has_product_localizations = False
+        if "localizations" in image_doc and image_doc["localizations"]:
+            has_product_localizations = any(
+                "product_hash" in localization 
+                for localization in image_doc["localizations"]
             )
 
         response = {
             "exists": True,
-            "has_product_masks": has_product_masks,
-            "masks": []
+            "has_product_localizations": has_product_localizations,
+            "localizations": []
         }
         
-        if "masks" in image_doc and image_doc["masks"]:
-            for mask in image_doc["masks"]:
-                if "mask_point" in mask and "product_hash" in mask:
+        if "localizations" in image_doc and image_doc["localizations"]:
+            for localization in image_doc["localizations"]:
+                if "localization_point" in localization and "product_hash" in localization:
                     # Look up product information
-                    product = db.products.find_one({"product_hash": mask["product_hash"]})
+                    product = db.products.find_one({"product_hash": localization["product_hash"]})
                     if product:
                         # Get first image URL from the product's image_hashes
                         product_image_url = None
@@ -66,20 +66,20 @@ async def check_url(url: str = Query(...), db_name: str = Query(...)):
                             if image_meta:
                                 product_image_url = image_meta.get("original_url")
 
-                        response["masks"].append({
-                            "point": mask["mask_point"],
+                        response["localizations"].append({
+                            "point": localization["localization_point"],
                             "product_url": product.get("url"),
                             "product_title": product.get("title"),
                             "product_price": product.get("price"),
                             "product_image": product_image_url
                         })
         
-        logger.info(f"Checked URL {url} in database {db_name}: exists={response['exists']}, has_product_masks={response['has_product_masks']}")
+        logger.info(f"Checked URL {url} in database {db_name}: exists={response['exists']}, has_product_localizations={response['has_product_localizations']}")
         return response
     
     except Exception as e:
         logger.error(f"Error checking URL: {str(e)}", exc_info=True)
-        return {"error": str(e), "exists": False, "has_product_masks": False, "masks": []}
+        return {"error": str(e), "exists": False, "has_product_localizations": False, "localizations": []}
 
 @app.get("/health")
 async def health_check():
