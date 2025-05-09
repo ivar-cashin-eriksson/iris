@@ -27,7 +27,7 @@
       "matches": ["<all_urls>"]
     }],
     "icons": {
-      "48": "images/icon48.png",
-      "128": "images/icon128.png"
+      "48": "images/logo_circle48.png",
+      "128": "images/logo_circle128.png"
     }
 }
