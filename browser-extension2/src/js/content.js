@@ -1,4 +1,5 @@
 import { config } from './config.js';
+import { UIComponents } from './uiComponents.js';
 
 // Data Management
 class DataManager {
@@ -44,22 +45,31 @@ class OverlayManager {
         this.overlays = new Map();
         this.dataManager = new DataManager();
         this.processingUrls = new Set();
+        this.processQueue = [];
+        this.isProcessing = false;
+        this.mutationTimeout = null;
         this.setupMutationObserver();
         this.processExistingImages();
     }
 
     setupMutationObserver() {
         const observer = new MutationObserver((mutations) => {
-            mutations.forEach(mutation => {
-                if (mutation.type === 'childList') {
-                    mutation.addedNodes.forEach(node => this.processNode(node));
-                    mutation.removedNodes.forEach(node => this.cleanupNode(node));
-                }
-                if (mutation.type === 'attributes') {
-                    this.cleanupNode(mutation.target);
-                    this.processNode(mutation.target);
-                }
-            });
+            // Debounce mutation callbacks
+            if (this.mutationTimeout) {
+                clearTimeout(this.mutationTimeout);
+            }
+            this.mutationTimeout = setTimeout(() => {
+                mutations.forEach(mutation => {
+                    if (mutation.type === 'childList') {
+                        mutation.addedNodes.forEach(node => this.processNode(node));
+                        mutation.removedNodes.forEach(node => this.cleanupNode(node));
+                    }
+                    if (mutation.type === 'attributes') {
+                        this.cleanupNode(mutation.target);
+                        this.processNode(mutation.target);
+                    }
+                });
+            }, 500); // Wait 500ms before processing mutations
         });
 
         observer.observe(document.body, {
@@ -74,15 +84,37 @@ class OverlayManager {
     async processNode(node) {
         if (node.nodeName === 'IMG') {
             if (!this.processingUrls.has(node.src)) {
-                await this.processImage(node);
+                this.addToQueue(node);
             }
         } else if (node.nodeType === Node.ELEMENT_NODE) {
             const images = node.querySelectorAll('img');
             for (const img of images) {
                 if (!this.processingUrls.has(img.src)) {
-                    await this.processImage(img);
+                    this.addToQueue(img);
                 }
             }
+        }
+    }
+
+    addToQueue(imgElement) {
+        this.processQueue.push(imgElement);
+        this.processNextInQueue();
+    }
+
+    async processNextInQueue() {
+        if (this.isProcessing || this.processQueue.length === 0) return;
+        
+        this.isProcessing = true;
+        const imgElement = this.processQueue.shift();
+        
+        try {
+            await this.processImage(imgElement);
+        } catch (error) {
+            console.error('Error processing image:', error);
+        } finally {
+            this.isProcessing = false;
+            // Process next item after a small delay
+            setTimeout(() => this.processNextInQueue(), 100);
         }
     }
 
@@ -102,7 +134,10 @@ class OverlayManager {
     }
 
     isValidImage(imgElement) {
-        return imgElement && imgElement.src && !imgElement.src.startsWith('data:');
+        if (!imgElement || !imgElement.src || imgElement.src.startsWith('data:')) return false;
+        
+        const rect = imgElement.getBoundingClientRect();
+        return Math.min(rect.width, rect.height) >= 256;
     }
 
     cleanupNode(node) {
@@ -114,7 +149,26 @@ class OverlayManager {
     }
 
     processExistingImages() {
-        document.querySelectorAll('img').forEach(img => this.processImage(img));
+        // Process visible images first
+        const images = Array.from(document.querySelectorAll('img'));
+        const visibleImages = images.filter(img => this.isElementInViewport(img));
+        
+        visibleImages.forEach(img => this.addToQueue(img));
+        
+        // Process remaining images
+        images
+            .filter(img => !visibleImages.includes(img))
+            .forEach(img => this.addToQueue(img));
+    }
+
+    isElementInViewport(el) {
+        const rect = el.getBoundingClientRect();
+        return (
+            rect.top >= 0 &&
+            rect.left >= 0 &&
+            rect.bottom <= (window.innerHeight || document.documentElement.clientHeight) &&
+            rect.right <= (window.innerWidth || document.documentElement.clientWidth)
+        );
     }
 
     /**
@@ -133,8 +187,7 @@ class OverlayManager {
             container.style.position = 'relative';
         }
 
-        const overlay = document.createElement('div');
-        overlay.className = 'image-overlay';
+        const overlay = UIComponents.createOverlay();
         
         const imageOffsetX = imgElement.getBoundingClientRect().x - container.getBoundingClientRect().x;
         overlay.style.left = `${imageOffsetX}px`;
@@ -143,35 +196,18 @@ class OverlayManager {
         overlay.style.width = `${imgElement.scrollWidth}px`;
         overlay.style.height = `${imgElement.scrollHeight}px`;
 
-        if (data.masks.length===0) {
+        if (data.localizations.length === 0) {
             overlay.classList.add('no-products');
         }
-        this.overlays.set(imgElement, overlay);
-
-        data.masks.forEach(mask => {
-            const maskElement = document.createElement('a');
-            maskElement.href = mask.product_url;
-            maskElement.className = 'iris-link';
-            maskElement.style.left = mask.point.x / imgElement.naturalWidth * 100 + '%';
-            maskElement.style.top = mask.point.y / imgElement.naturalHeight * 100 + '%';
-            maskElement.target = '_blank';
-            maskElement.innerHTML = `
-            <div class="iris-circle"></div>
-            <div class="iris-product-container">
-                <img src="${mask.product_image}" alt="${mask.product_title}" class="iris-product-image">
-                <div class="iris-product-info">
-                    <div>${mask.product_title}</div>
-                    <div>${mask.product_price}</div>
-                </div>
-            </div>
-            `;
-
-            overlay.appendChild(maskElement);
+        
+        data.localizations.forEach(localization => {
+            const productLink = UIComponents.createProductLink(localization, container);
+            overlay.appendChild(productLink);
         });
 
+        this.overlays.set(imgElement, overlay);
         container.appendChild(overlay);
     }
-
 
     removeOverlay(imgElement) {
         const overlay = this.overlays.get(imgElement);

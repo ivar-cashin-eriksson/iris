@@ -1,6 +1,10 @@
 .image-overlay {
   position: absolute !important;
-  z-index: 1000 !important;
+  top: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
+  bottom: 0 !important;
+  z-index: 10 !important;
   pointer-events: none !important;
   border: green 2px solid !important;
 }
@@ -15,69 +19,129 @@
   z-index: 1001 !important;
 }
 
+/* Hotspot styles */
 .iris-link {
-  position: absolute;
-  z-index: 1002 !important;
+  position: absolute !important;
   pointer-events: auto !important;
-  top:0;
-  left:0;
+  z-index: 1002 !important;
+  cursor: pointer !important;
 }
 
-.iris-circle {
-  transform: translate(-13px, -13px) !important;
+.iris-hotspot {
+  transform: translate(-50%, -50%) !important;
+  cursor: pointer !important;
+  display: flex !important;
   height: 26px !important;
   width: 26px !important;
-  border-radius: 50%;
+  align-items: center !important;
+  justify-content: center !important;
+}
+
+/* Add connector to hotspot */
+.iris-hotspot::after {
+  content: '' !important;
+  position: absolute !important;
+  width: 100px !important;
+  height: 26px !important;
+  left: 50% !important;
+  top: 50% !important;
+  transform: translateX(-50%) !important;
+  background: transparent !important;
+}
+
+.iris-hotspot-dot {
+  z-index: 1 !important;
+  display: flex !important;
+  height: 26px !important;
+  width: 26px !important;
+  align-items: center !important;
+  justify-content: center !important;
+  border-radius: 9999px !important;
   background-color: rgba(0, 0, 0, 0.5) !important;
   transition: all 0.2s ease-out !important;
   animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite !important;
-  position: absolute;
 }
 
-.iris-link:hover .iris-circle {
+.iris-link:hover .iris-hotspot-dot {
   animation: none !important;
-  height: 35px;
-  width: 35px;
+  transform: scale(1.25) !important;
 }
 
-.iris-circle::after {
-  content: '';
+.iris-hotspot-inner {
   z-index: 1 !important;
   height: 4px !important;
   width: 4px !important;
-  border-radius: 50%;
+  border-radius: 9999px !important;
   background-color: white !important;
-  position: absolute;
-  top: 50%;
-  left: 50%;
 }
 
-.iris-product-container {
-  display: none;
+/* Tooltip styles */
+.iris-tooltip {
+  position: absolute !important;
+  top: calc(100%) !important;  /* Position below hotspot */
+  left: 50% !important;
+  transform: translateX(calc(-50% - 13px)) !important;
+  background: white !important;
+  border-radius: 6px !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15) !important;
+  border: 1px solid #f0f0f0 !important;
+  font-family: Arial, sans-serif !important;
+  opacity: 0 !important;
+  transition: opacity 0.2s ease !important;
+  z-index: 1003 !important;
+  height: 60px !important;
+  width: max-content !important;
 }
 
-.iris-link:hover .iris-product-container {
-  display: flex;
-  flex-direction: row;
-  background: white;
-  border-radius: 3px;
-  position: absolute;
-  gap: 5px;
-  top: 20px;
-  left: 20px;
+.iris-link:hover .iris-tooltip {
+  opacity: 1 !important;
+  pointer-events: auto !important;
 }
 
-.iris-product-image {
-  width: 20px;
-  height: 20px;
+.iris-tooltip-content {
+  display: flex !important;
+  align-items: stretch !important;
+  padding: 0 !important;
+  gap: 0 !important;
+  height: 100% !important;
+  font-size: 8px !important;
 }
 
-.iris-product-info {
-  display: flex;
-  flex-direction: column;
-  gap: 5px;
+.iris-tooltip-image {
+  height: 100% !important;
+  width: auto !important;
+  object-fit: contain !important;
+  flex-shrink: 0 !important;
 }
 
+.iris-tooltip-info {
+  flex: 1 !important;
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 8px !important;
+  padding: 12px !important;
+  justify-content: space-between !important;
+}
 
+.iris-tooltip-button {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  padding: 8px 12px !important;
+  margin: 12px !important;
+  background: #000 !important;
+  color: #fff !important;
+  border-radius: 3px !important;
+  font-size: 8px !important;
+  height: 26px !important;
+  align-self: center !important;
+}
 
-/* Add your custom overlay styles here */
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
