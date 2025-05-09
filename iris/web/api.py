@@ -22,7 +22,7 @@ logger = logging.getLogger(__name__)
 # Initialize MongoDB client with Atlas connection string
 client = MongoClient("mongodb+srv://test:test@iris-cluster.andes.mongodb.net/?retryWrites=true&w=majority&appName=iris-cluster")
 
-@app.get("/check-url")
+@app.get("/get_image_predictions")
 async def check_url(url: str = Query(...), db_name: str = Query(...)):
     """
     Check if a URL exists in the image_metadata collection and return localization information.
