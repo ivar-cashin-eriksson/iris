@@ -5,15 +5,17 @@ export class UIComponents {
         return overlay;
     }
 
-    static createProductLink(localization, container) {
+    static createProductLink(detection, container) {
         const link = document.createElement('a');
-        link.href = localization.product_url;
         link.className = 'iris-link';
         link.target = '_blank';
         
+        // Set initial URL to first prediction
+        link.href = detection.product_predictions[0].product_url;
+        
         // Position the link using the normalized coordinates (0-1) from the API
-        link.style.left = `${localization.point.x * 100}%`;
-        link.style.top = `${localization.point.y * 100}%`;
+        link.style.left = `${detection.point.x * 100}%`;
+        link.style.top = `${detection.point.y * 100}%`;
 
         // Make sure the link takes the click event
         link.addEventListener('click', e => {
@@ -35,16 +37,33 @@ export class UIComponents {
         const tooltip = document.createElement('div');
         tooltip.className = 'iris-tooltip';
         
-        tooltip.innerHTML = `
-            <div class="iris-tooltip-content">
-                <img src="${localization.product_image}" alt="${localization.product_title}" class="iris-tooltip-image" />
+        const tooltipContent = detection.product_predictions.map(product => `
+            <div class="iris-tooltip-content" data-url="${product.product_url}">
+                <img src="${product.product_image}" alt="${product.product_title}" class="iris-tooltip-image" />
                 <div class="iris-tooltip-info">
-                    <div class="iris-tooltip-title">${localization.product_title}</div>
-                    <div class="iris-tooltip-price">${localization.product_price}</div>
+                    <div class="iris-tooltip-title">${product.product_title}</div>
+                    <div class="iris-tooltip-price">${product.product_price}</div>
+                    ${product.score ? `<div class="iris-tooltip-score">Score: ${product.score.toFixed(3)}</div>` : ''}
                 </div>
                 <span class="iris-tooltip-button">View product</span>
             </div>
+        `).join('');
+
+        tooltip.innerHTML = `
+            <div class="iris-tooltip-scroll">
+                ${tooltipContent}
+            </div>
         `;
+
+        // Add click handlers for each product option
+        tooltip.querySelectorAll('.iris-tooltip-content').forEach(content => {
+            content.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                link.href = content.dataset.url;
+                window.open(link.href, '_blank');
+            });
+        });
 
         link.appendChild(hotspot);
         link.appendChild(tooltip);

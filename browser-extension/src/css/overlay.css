@@ -89,8 +89,18 @@
   opacity: 0 !important;
   transition: opacity 0.2s ease !important;
   z-index: 1003 !important;
-  height: 60px !important;
+  height: auto !important;
+  max-height: 210px !important;
+  overflow: hidden !important;
   width: max-content !important;
+  overflow-x: hidden !important;
+}
+
+.iris-tooltip-scroll {
+  max-height: 210px !important;
+  overflow-y: auto !important;
+  scrollbar-width: thin !important;
+  overflow-x: hidden !important;
 }
 
 .iris-link:hover .iris-tooltip {
@@ -100,11 +110,21 @@
 
 .iris-tooltip-content {
   display: flex !important;
-  align-items: stretch !important;
-  padding: 0 !important;
-  gap: 0 !important;
-  height: 100% !important;
+  align-items: center !important;
+  padding: 8px !important;
+  gap: 12px !important;
+  height: 80px !important; /* Increase height */
   font-size: 8px !important;
+  transition: background-color 0.2s ease !important;
+  cursor: pointer !important;
+}
+
+.iris-tooltip-content:not(:last-child) {
+  border-bottom: 1px solid rgba(0, 0, 0, 0.1) !important;
+}
+
+.iris-tooltip-content:hover {
+  background-color: rgba(0, 0, 0, 0.05) !important;
 }
 
 .iris-tooltip-image {
@@ -118,9 +138,46 @@
   flex: 1 !important;
   display: flex !important;
   flex-direction: column !important;
-  gap: 8px !important;
-  padding: 12px !important;
-  justify-content: space-between !important;
+  justify-content: center !important;  /* Center content vertically */
+  gap: 4px !important;
+  padding: 0 !important; /* Remove padding */
+  width: 100px !important;  /* Fix: add px */
+  height: 100% !important;
+  overflow: hidden !important;
+  align-items: flex-start !important;
+}
+
+.iris-tooltip-title {
+  font-size: 10px !important;
+  line-height: 1.2 !important;
+  font-weight: 500 !important;
+  margin: 0 !important;
+  display: -webkit-box !important;
+  -webkit-line-clamp: 2 !important; /* Show 2 lines */
+  -webkit-box-orient: vertical !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  max-height: 2.4em !important; /* Ensure space for 2 lines */
+  white-space: normal !important; /* Allow wrapping */
+}
+
+.iris-tooltip-price {
+  font-size: 10px !important;
+  font-weight: bold !important;
+  margin: 0 !important;
+}
+
+.iris-tooltip-score {
+  font-size: 9px !important;
+  color: #666 !important;
+  margin: 0 !important;
+}
+
+.iris-tooltip-title,
+.iris-tooltip-price,
+.iris-tooltip-score {
+    text-align: left !important;   /* NEW: force text itself to align left */
+    width: 100% !important;        /* NEW: ensure block fills container */
 }
 
 .iris-tooltip-button {
@@ -128,13 +185,33 @@
   align-items: center !important;
   justify-content: center !important;
   padding: 8px 12px !important;
-  margin: 12px !important;
+  margin: 0 8px !important;  /* Reduce margin to 4px */
   background: #000 !important;
   color: #fff !important;
   border-radius: 3px !important;
   font-size: 8px !important;
-  height: 26px !important;
+  height: 24px !important;
   align-self: center !important;
+  flex-shrink: 0 !important;
+}
+
+/* Scrollbar styles */
+.iris-tooltip-scroll::-webkit-scrollbar {
+  width: 6px !important;
+}
+
+.iris-tooltip-scroll::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.1) !important;
+  border-radius: 3px !important;
+}
+
+.iris-tooltip-scroll::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.2) !important;
+  border-radius: 3px !important;
+}
+
+.iris-tooltip-scroll::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 0, 0, 0.3) !important;
 }
 
 @keyframes pulse {

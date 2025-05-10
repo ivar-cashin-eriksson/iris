@@ -13,7 +13,7 @@ class DataManager {
     }
 
     try {
-      const url = new URL(`${config.api.baseUrl}/check-url`);
+      const url = new URL(`${config.api.baseUrl}/get-detections-all-predictions`);
       url.searchParams.append('url', imageUrl);
       url.searchParams.append('db_name', config.api.dbName);
 
@@ -196,12 +196,12 @@ class OverlayManager {
         overlay.style.width = `${imgElement.scrollWidth}px`;
         overlay.style.height = `${imgElement.scrollHeight}px`;
 
-        if (data.localizations.length === 0) {
+        if (data.detections.length === 0) {
             overlay.classList.add('no-products');
         }
         
-        data.localizations.forEach(localization => {
-            const productLink = UIComponents.createProductLink(localization, container);
+        data.detections.forEach(detection => {
+            const productLink = UIComponents.createProductLink(detection, container);
             overlay.appendChild(productLink);
         });
 
