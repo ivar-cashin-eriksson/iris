@@ -114,3 +114,25 @@ class EmbeddingDatabase:
                 self.index.reconstruct(i) 
                 for i in range(self.index.ntotal)
             ]
+
+    def get_embedding(self, id: str) -> np.ndarray:
+        """
+        Retrieve an embedding by its ID.
+        
+        Args:
+            id (str): The unique identifier for the embedding.
+            
+        Returns:
+            np.ndarray: The embedding vector if found, None otherwise.
+            
+        Raises:
+            KeyError: If the ID is not found in the database.
+        """
+        try:
+            idx = self.ids.index(id)
+            if hasattr(self.index, 'reconstruct'):
+                return self.index.reconstruct(idx)
+            else:
+                return self.embeddings[idx]
+        except ValueError:
+            raise KeyError(f"No embedding found for ID: {id}")
