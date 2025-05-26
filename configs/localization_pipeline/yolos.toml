@@ -1,6 +1,6 @@
 # Configuration for sam2
 
-_checkpoint_path = "checkpoints/yolos/"
+checkpoint_path = "checkpoints/yolos/"
 use_fast = true
 confidence_threshold = 0.3
 

@@ -46,7 +46,7 @@ class ImageHandler:
         self.mongodb_manager = mongodb_manager
 
         # Create the images directory within the shop's storage path
-        self.images_dir = self.storage_config.get_storage_path(self.shop_config) / "images"
+        self.images_dir = self.storage_config.storage_path / "images"
         self.images_dir.mkdir(parents=True, exist_ok=True)
 
     def _get_element_path(self, element: BeautifulSoup) -> str:

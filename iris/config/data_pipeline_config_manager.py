@@ -4,9 +4,12 @@ Configuration manager for data pipeline.
 
 from dataclasses import dataclass, asdict
 from pathlib import Path
-from typing import Dict
+import os
 
 from iris.config.config_manager import BaseConfig, ConfigManager
+from dotenv import load_dotenv
+
+load_dotenv()
 
 
 @dataclass(frozen=True)
@@ -27,45 +30,51 @@ class ScraperConfig:  # TODO: Should this be an abstract class?
 class ShopConfig:
     """Shop-specific configuration."""
 
+    shop_name: str
     base_url: str
     image_selectors: dict[str, str]
     metadata_selectors: dict[str, str]
     scraper_config: ScraperConfig
-    shop_name: str | None = None  # Optional, set from filename if None
 
 
 @dataclass(frozen=True, kw_only=True)  # kw_only=True due to inheritance of BaseConfig
 class StorageConfig(BaseConfig):
     """Storage configuration."""
 
+    storage_path: Path = None
     _path_template: str = "data/{env}/{shop_name}"
+    _shop_name: str
 
-    def get_storage_path(self, shop_config: ShopConfig) -> Path:
-        """Get the storage path for a specific shop."""
+    def __post_init__(self) -> None:
         computed_path = self._path_template.format(
             env=self.environment,
-            shop_name=shop_config.shop_name
+            shop_name=self._shop_name
         )
-        return Path(self.base_path) / computed_path
+        object.__setattr__(self, "storage_path", self.base_path / computed_path)
 
 
 @dataclass(frozen=True, kw_only=True)  # kw_only=True due to inheritance of BaseConfig
 class MongoDBConfig(BaseConfig):
     """MongoDB configuration."""
 
-    connection_string: str
-    _database_template: str = "iris_{env}_{shop_name}"
+    connection_string: str = None
+    database_name: str = None
     image_metadata_collection: str = "image_metadata"
     product_collection: str = "products"
     scraping_progress_collection: str = "scraping_progress"
     tls_allow_invalid_certificates: bool = True
+    _database_template: str = "iris_{env}_{shop_name}"
+    _shop_name: str
 
-    def get_database_name(self, shop_config: ShopConfig) -> str:
-        """Get the database name for a specific shop."""
-        return self._database_template.format(
+    def __post_init__(self) -> None:
+        database_name = self._database_template.format(
             env=self.environment,
-            shop_name=shop_config.shop_name
+            shop_name=self._shop_name
         )
+        connection_string = os.getenv('MONGODB_CONNECTION_STRING')
+
+        object.__setattr__(self, "database_name", database_name)
+        object.__setattr__(self, "connection_string", connection_string)
 
 
 class DataPipelineConfigManager(ConfigManager):
@@ -80,40 +89,34 @@ class DataPipelineConfigManager(ConfigManager):
     - MongoDB connection settings
 
     Attributes:
-        data_pipeline_config_dir (Path): Directory containing data pipeline configs.
-        shops_config_dir (Path): Directory containing shop-specific configs.
         scraper_config (ScraperConfig): Base scraper configuration.
-        shop_configs (Dict[str, ShopConfig]): Shop-specific configurations.
+        shop_config (ShopConfig): Shop-specific configuration.
         storage_config (StorageConfig): Storage configuration.
         mongodb_config (MongoDBConfig): MongoDB configuration.
     """
 
-    def _setup_paths(self) -> None:
-        self.data_pipeline_config_dir = self.config_dir / "data_pipeline"
-        self.shops_config_dir = self.data_pipeline_config_dir / "shops"
-
     def _load_all_configs(self) -> None:
         # Load Scraper Config
-        scraper_data = self._load_toml(self.data_pipeline_config_dir / "scraper.toml")
+        scraper_data = self._load_toml(self.base_config.scraper_config_path)
         self.scraper_config: ScraperConfig = self._create_scraper_config(scraper_data)
 
         # Load shop configurations
-        self.shop_configs: Dict[str, ShopConfig] = {}
-        for shop_config_path in self.shops_config_dir.glob("*.toml"):
-            shop_name = shop_config_path.stem
-            shop_config_data = self._load_toml(shop_config_path)
-            self.shop_configs[shop_name] = self._create_shop_config(
-                shop_config_data, 
-                shop_name
-            )
+        shop_config_data = self._load_toml(self.base_config.shop_config_path)
+        self.shop_config: ShopConfig = self._create_shop_config(shop_config_data)
 
         # Load Storage Config
-        storage_data = self._load_toml(self.data_pipeline_config_dir / "storage.toml")
-        self.storage_config: StorageConfig = self._create_storage_config(storage_data)
+        storage_data = self._load_toml(self.base_config.storage_config_path)
+        self.storage_config: StorageConfig = self._create_storage_config(
+            storage_data,
+            self.shop_config.shop_name
+        )
 
         # Load MongoDB Config
-        mongodb_data = self._load_toml(self.data_pipeline_config_dir / "mongodb.toml")
-        self.mongodb_config: MongoDBConfig = self._create_mongodb_config(mongodb_data)
+        mongodb_data = self._load_toml(self.base_config.mongodb_config_path)
+        self.mongodb_config: MongoDBConfig = self._create_mongodb_config(
+            mongodb_data,
+            self.shop_config.shop_name
+        )
 
     def _create_scraper_config(
         self, data: dict, 
@@ -126,22 +129,19 @@ class DataPipelineConfigManager(ConfigManager):
         # Make ScraperConfig
         return ScraperConfig(**data)
 
-    def _create_shop_config(self, data: dict, shop_name: str) -> ShopConfig:
-        # Use configured shop_name if provided, otherwise use filename
-        if "shop_name" not in data:
-            data["shop_name"] = shop_name
-
+    def _create_shop_config(self, data: dict) -> ShopConfig:
         # Merge the default scraper config with any shop-specific overrides
         scraper_overrides = data.pop("scraper_overrides", {})
         scraper_config = self._create_scraper_config(
-            self.scraper_config.__dict__.copy(), scraper_overrides
+            asdict(self.scraper_config), 
+            scraper_overrides
         )
 
         # Make ShopConfig
         return ShopConfig(**data, scraper_config=scraper_config)
     
-    def _create_storage_config(self, data: dict) -> StorageConfig:
-        return StorageConfig(**asdict(self.base_config), **data)
+    def _create_storage_config(self, data: dict, shop_name: str) -> StorageConfig:
+        return StorageConfig(**asdict(self.base_config), **data, _shop_name=shop_name)
 
-    def _create_mongodb_config(self, data: dict) -> MongoDBConfig:
-        return MongoDBConfig(**asdict(self.base_config), **data)
+    def _create_mongodb_config(self, data: dict, shop_name: str) -> MongoDBConfig:
+        return MongoDBConfig(**asdict(self.base_config), **data, _shop_name=shop_name)

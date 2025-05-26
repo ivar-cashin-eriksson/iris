@@ -1,5 +1,4 @@
 # MongoDB connection configuration
-connection_string = "mongodb+srv://test:test@iris-cluster.andes.mongodb.net/?retryWrites=true&w=majority&appName=iris-cluster"
 _database_template = "iris_{env}_{shop_name}"  # Template for database names with environment identifier
 
 # Collections
