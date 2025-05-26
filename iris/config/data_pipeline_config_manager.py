@@ -77,6 +77,19 @@ class MongoDBConfig(BaseConfig):
         object.__setattr__(self, "connection_string", connection_string)
 
 
+@dataclass(frozen=True, kw_only=True)  # kw_only=True due to inheritance of BaseConfig
+class QdrantConfig(BaseConfig):
+    """Qdrant configuration."""
+
+    api_key: str = None
+    url: str
+
+    def __post_init__(self) -> None:
+        api_key = os.getenv('QDRANT_API_KEY')
+
+        object.__setattr__(self, "api_key", api_key)
+
+
 class DataPipelineConfigManager(ConfigManager):
     """
     Manages configuration loading and access from multiple TOML files.
@@ -118,6 +131,12 @@ class DataPipelineConfigManager(ConfigManager):
             self.shop_config.shop_name
         )
 
+        # Load Qdrant Config
+        qdrant_data = self._load_toml(self.base_config.qdrant_config_path)
+        self.qdrant_config: QdrantConfig = self._create_qdrant_config(
+            qdrant_data
+        )
+
     def _create_scraper_config(
         self, data: dict, 
         override_data: dict | None = None
@@ -145,3 +164,6 @@ class DataPipelineConfigManager(ConfigManager):
 
     def _create_mongodb_config(self, data: dict, shop_name: str) -> MongoDBConfig:
         return MongoDBConfig(**asdict(self.base_config), **data, _shop_name=shop_name)
+
+    def _create_qdrant_config(self, data: dict) -> QdrantConfig:
+        return QdrantConfig(**asdict(self.base_config), **data)
