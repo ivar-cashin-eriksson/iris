@@ -1,0 +1,2 @@
+# Qdrant connection configuration
+url="https://faa8f550-ff00-4890-b04e-1151b28d57a4.eu-west-2-0.aws.cloud.qdrant.io:6333"
