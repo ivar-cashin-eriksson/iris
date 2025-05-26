@@ -1,4 +1,5 @@
 # Nikolaj Storm configuration
+shop_name = "nikolaj_storm"
 base_url = "https://nikolajstorm.com/"
 
 [image_selectors]

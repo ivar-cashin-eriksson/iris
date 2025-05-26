@@ -2,4 +2,4 @@
 
 # Remember to change model_type and model_config if you are using a different model
 model_type = "yolo"
-model_config = "yolo.toml"
+model_config = "localization_pipeline/yolo.toml"

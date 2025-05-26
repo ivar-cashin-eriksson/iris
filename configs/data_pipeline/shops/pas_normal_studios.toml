@@ -1,4 +1,5 @@
 # Pas Normal Studios configuration
+shop_name = "pas_normal_studios"
 base_url = "https://pasnormalstudios.com/dk"
 
 [image_selectors]

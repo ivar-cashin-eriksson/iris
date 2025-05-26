@@ -4,16 +4,39 @@ from dataclasses import dataclass
 from pathlib import Path
 from abc import ABC, abstractmethod
 from typing import final
+import os
+from dotenv import load_dotenv
 
-
+load_dotenv()
 
 @dataclass(frozen=True)
 class BaseConfig:
     """Base configuration with environment settings."""
+    
+    config_dir: Path
+    _config_paths: dict[str, Path]
+    shop_config_path: Path
+    mongodb_config_path: Path
+    qdrant_config_path: Path
+    scraper_config_path: Path
+    storage_config_path: Path
+    clip_config_path: Path
+    embeddingdb_config_path: Path
+    localization_config_path: Path
 
-    base_path: str
+    base_path: Path = None  # Will be set in __post_init__ from environment variable
     environment: str = "dev"  # Default to development environment
     device: str = "cpu"
+    
+    def __post_init__(self):
+        """Post-initialization to ensure base_path is set."""
+        object.__setattr__(self, "base_path", Path(os.getenv('BASE_PATH')))
+        object.__setattr__(self, "config_dir", self.base_path / Path(self.config_dir))
+        
+        # Convert config_paths values to Path objects and prepend base_path
+        for config_name, path in self._config_paths.items():
+            config_path = self.base_path / self.config_dir / path
+            object.__setattr__(self, config_name, config_path)
 
 
 class ConfigManager(ABC):
@@ -25,11 +48,9 @@ class ConfigManager(ABC):
     `TOML` files and different configuration `@dataclasses`.
 
     Attributes:
-        config_dir (Path): Root directory containing all configuration files.
         base_config (BaseConfig): Base configuration containing environment settings.
 
     Subclasses must implement the following methods:
-    - `_setup_paths()`: Defines paths to speciality configs.
     - `_load_all_configs()`: Defines loading logic for speciality 
                              configs.
 
@@ -40,34 +61,20 @@ class ConfigManager(ABC):
     - `_load_toml()`: Loads `TOML` file from file path.
     """
 
-    def __init__(self, config_dir: Path | None = None) -> None:
+    def __init__(self) -> None:
         """
         Initialize the configuration manager.
-
-        Args:
-            config_dir: Path to the configuration directory. If None,
-                        uses default directory `config/`.
         """
 
-        # Set up configuration paths
-        self.config_dir = (
-            config_dir
-            if config_dir
-            else Path(__file__).parent.parent.parent / "configs"
-        )
+        self.base_config_path = Path(os.getenv('BASE_PATH')) \
+                              / os.getenv('BASE_CONFIG_PATH')
         
         # Load Base Config
-        base_data = self._load_toml(self.config_dir / "base.toml")
-        self.base_config = BaseConfig(**base_data)
+        base_data = self._load_toml(self.base_config_path)
+        self.base_config = BaseConfig(**base_data, **base_data['_config_paths'])
 
         # Call the abstract method that subclasses must implement
-        self._setup_paths()
         self._load_all_configs()
-
-    @abstractmethod
-    def _setup_paths(self) -> None:
-        """Set up additional configuration paths needed by subclasses."""
-        pass
 
     @abstractmethod
     def _load_all_configs(self) -> None:

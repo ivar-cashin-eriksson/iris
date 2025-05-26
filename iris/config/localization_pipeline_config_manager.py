@@ -14,16 +14,19 @@ from iris.config.config_manager import BaseConfig, ConfigManager
 class LocalizationModelConfig(ABC, BaseConfig):
     """Base configuration for localization models."""
 
-    _checkpoint_path: str
+    checkpoint_path: Path
     model_params: dict[str, Union[int, float, bool]]
     max_image_size = None  # Maximum size for the longest dimension of images.
                            # None indicates no limit.
                            # Images are scaled to this size, and then
                            # localizations are rescaled again.
-
-    def get_checkpoint_path(self) -> Path:
-        """Get the storage path for the model checkpoint."""
-        return Path(self.base_path) / self._checkpoint_path
+    
+    def __post_init__(self) -> None:
+        object.__setattr__(
+            self, 
+            "checkpoint_path", 
+            self.base_path / self.checkpoint_path
+        )
 
 @dataclass(frozen=True, kw_only=True)
 class YoloConfig(LocalizationModelConfig):
@@ -54,24 +57,19 @@ class LocalizationPipelineConfigManager(ConfigManager):
     - SAM2 model settings (checkpoint, config)
 
     Attributes:
-        config_dir (Path): Directory containing object localization 
-                                        configs.
         model_config (LocalizationModelConfig): Main object localization 
                                                       configuration.
     """
 
-    def _setup_paths(self) -> None:
-        self.config_dir = self.config_dir / "localization_pipeline"
-
     def _load_all_configs(self) -> None:
         # Load main object localization config
         self._localization_base_config = self._load_toml(
-            self.config_dir / "localization_config.toml"
+            self.base_config.localization_config_path
         )
 
         # Load model config
         model_data = self._load_toml(
-            self.config_dir / self._localization_base_config["model_config"]
+            self.base_config.config_dir / self._localization_base_config["model_config"]
         )
         self.model_config = self._create_model_config(model_data)
 

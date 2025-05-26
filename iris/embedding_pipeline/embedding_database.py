@@ -15,7 +15,7 @@ class EmbeddingDatabase:
             shop_config (ShopConfig): Shop-specific configuration for path
         """
         self.config = config
-        self.database_directory = config.get_storage_path(shop_config)
+        self.database_directory = config.storage_path
         
         if config.index_type == "flat":
             self.index = faiss.IndexFlatL2(config.embedding_dim)

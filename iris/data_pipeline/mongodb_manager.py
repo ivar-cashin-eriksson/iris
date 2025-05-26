@@ -51,7 +51,7 @@ class MongoDBManager:
                 tlsAllowInvalidCertificates=self.mongodb_config.tls_allow_invalid_certificates,
             )
             # Use shop-specific database name
-            database_name = self.mongodb_config.get_database_name(self.shop_config)
+            database_name = self.mongodb_config.database_name
             self._db = self._client[database_name]
 
     def close(self) -> None:
