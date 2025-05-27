@@ -20,15 +20,13 @@ class MongoDBManager:
     - Context manager support
     """
 
-    def __init__(self, shop_config: ShopConfig, mongodb_config: MongoDBConfig) -> None:
+    def __init__(self, mongodb_config: MongoDBConfig) -> None:
         """
         Initialize the MongoDB manager.
 
         Args:
-            shop_config (ShopConfig): Shop configuration
             mongodb_config (MongoDBConfig): MongoDB configuration
         """
-        self.shop_config = shop_config
         self.mongodb_config = mongodb_config
         self._client: MongoClient | None = None
         self._db: Database | None = None
