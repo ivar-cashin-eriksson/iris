@@ -1,2 +1,7 @@
 # Qdrant connection configuration
 url="https://faa8f550-ff00-4890-b04e-1151b28d57a4.eu-west-2-0.aws.cloud.qdrant.io:6333"
+
+_collection_template = "iris_{env}_{shop_name}_{collection_name}"
+image_collection = 'images'
+text_collection = 'texts'
+product_collection = 'products'
