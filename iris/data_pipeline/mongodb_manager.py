@@ -1,11 +1,15 @@
 import datetime
-from typing import Any
+from typing import Any, TypeAlias, Self
 
 from pymongo import MongoClient
 from pymongo.collection import Collection
 from pymongo.database import Database
 
-from iris.config.data_pipeline_config_manager import ShopConfig, MongoDBConfig
+from iris.config.data_pipeline_config_manager import MongoDBConfig
+
+# Type aliases
+DocumentType: TypeAlias = dict[str, Any]
+QueryType: TypeAlias = dict[str, Any]
 
 
 class MongoDBManager:
@@ -18,6 +22,18 @@ class MongoDBManager:
     - Collection access and management
     - Common database operations (insert, update, find)
     - Context manager support
+
+    Example usage:
+        ```python
+        config = MongoDBConfig(...)
+        with MongoDBManager(config) as db:
+            # Insert document
+            doc_id = db.insert_one("collection_name", {"field": "value"})
+            
+            # Find document
+            result = db.find_one("collection_name", {"field": "value"})
+        # Connection is automatically closed after with block
+        ```
     """
 
     def __init__(self, mongodb_config: MongoDBConfig) -> None:
@@ -32,7 +48,7 @@ class MongoDBManager:
         self._db: Database | None = None
         self._collections: dict[str, Collection] = {}
 
-    def __enter__(self) -> "MongoDBManager":
+    def __enter__(self) -> Self:
         """Context manager entry."""
         self.connect()
         return self
@@ -76,7 +92,7 @@ class MongoDBManager:
             self._collections[collection_name] = self._db[collection_name]
         return self._collections[collection_name]
 
-    def insert_one(self, collection_name: str, document: dict[str, Any]) -> str:
+    def insert_one(self, collection_name: str, document: DocumentType) -> str:
         """
         Insert a single document into a collection.
 
@@ -94,8 +110,8 @@ class MongoDBManager:
     def update_one(
         self,
         collection_name: str,
-        filter_query: dict[str, Any],
-        update_data: dict[str, Any],
+        filter_query: QueryType,
+        update_data: DocumentType,
         upsert: bool = True,
     ) -> bool:
         """
@@ -117,8 +133,8 @@ class MongoDBManager:
         return result.modified_count > 0 or result.upserted_id is not None
 
     def find_one(
-        self, collection_name: str, query: dict[str, Any]
-    ) -> dict[str, Any] | None:
+        self, collection_name: str, query: QueryType
+    ) -> DocumentType | None:
         """
         Find a single document in a collection.
 
@@ -133,8 +149,8 @@ class MongoDBManager:
         return collection.find_one(query)
 
     def find_all(
-        self, collection_name: str, query: dict[str, Any] | None = None
-    ) -> list[dict[str, Any]]:
+        self, collection_name: str, query: QueryType | None = None
+    ) -> list[DocumentType]:
         """
         Find documents in a collection.
 
@@ -149,7 +165,7 @@ class MongoDBManager:
         cursor = collection.find(query) if query else collection.find()
         return list(cursor)
 
-    def delete_one(self, collection_name: str, query: dict[str, Any]) -> bool:
+    def delete_one(self, collection_name: str, query: QueryType) -> bool:
         """
         Delete a single document from a collection.
 
@@ -164,7 +180,7 @@ class MongoDBManager:
         result = collection.delete_one(query)
         return result.deleted_count > 0
 
-    def count_documents(self, collection_name: str, query: dict[str, Any]) -> int:
+    def count_documents(self, collection_name: str, query: QueryType) -> int:
         """
         Count documents in a collection matching a query.
 
@@ -178,7 +194,7 @@ class MongoDBManager:
         collection = self.get_collection(collection_name)
         return collection.count_documents(query)
 
-    def add_timestamp(self, document: dict[str, Any]) -> dict[str, Any]:
+    def add_timestamp(self, document: DocumentType) -> DocumentType:
         """
         Add a timestamp to a document.
 
