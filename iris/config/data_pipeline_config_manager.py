@@ -59,11 +59,11 @@ class MongoDBConfig(BaseConfig):
 
     connection_string: str = None
     database_name: str = None
+    tls_allow_invalid_certificates: bool = True
+    _database_template: str = "iris_{env}_{shop_name}"
     image_metadata_collection: str = "image_metadata"
     product_collection: str = "products"
     scraping_progress_collection: str = "scraping_progress"
-    tls_allow_invalid_certificates: bool = True
-    _database_template: str = "iris_{env}_{shop_name}"
     _shop_name: str
 
     def __post_init__(self) -> None:
@@ -71,9 +71,9 @@ class MongoDBConfig(BaseConfig):
             env=self.environment,
             shop_name=self._shop_name
         )
-        connection_string = os.getenv('MONGODB_CONNECTION_STRING')
-
         object.__setattr__(self, "database_name", database_name)
+
+        connection_string = os.getenv('MONGODB_CONNECTION_STRING')
         object.__setattr__(self, "connection_string", connection_string)
 
 
@@ -83,11 +83,33 @@ class QdrantConfig(BaseConfig):
 
     api_key: str = None
     url: str
+    _collection_template: str = "iris_{env}_{shop_name}_{collection_name}"
+    image_collection: str = 'images'
+    text_collection: str = 'texts'
+    product_collection: str = 'products'
+    _shop_name: str
+
 
     def __post_init__(self) -> None:
-        api_key = os.getenv('QDRANT_API_KEY')
+        collections = [
+            'image_collection', 
+            'text_collection', 
+            'product_collection'
+        ]
+        for collection_attr in collections:
+            base_name = getattr(self, collection_attr)
+            full_collection = self._collection_template.format(
+                env=self.environment,
+                shop_name=self._shop_name,
+                collection_name=base_name
+            )
+            object.__setattr__(self, collection_attr, full_collection)
 
+
+        api_key = os.getenv('QDRANT_API_KEY')
         object.__setattr__(self, "api_key", api_key)
+
+        
 
 
 class DataPipelineConfigManager(ConfigManager):
@@ -134,7 +156,8 @@ class DataPipelineConfigManager(ConfigManager):
         # Load Qdrant Config
         qdrant_data = self._load_toml(self.base_config.qdrant_config_path)
         self.qdrant_config: QdrantConfig = self._create_qdrant_config(
-            qdrant_data
+            qdrant_data,
+            self.shop_config.shop_name
         )
 
     def _create_scraper_config(
@@ -165,5 +188,5 @@ class DataPipelineConfigManager(ConfigManager):
     def _create_mongodb_config(self, data: dict, shop_name: str) -> MongoDBConfig:
         return MongoDBConfig(**asdict(self.base_config), **data, _shop_name=shop_name)
 
-    def _create_qdrant_config(self, data: dict) -> QdrantConfig:
-        return QdrantConfig(**asdict(self.base_config), **data)
+    def _create_qdrant_config(self, data: dict, shop_name: str) -> QdrantConfig:
+        return QdrantConfig(**asdict(self.base_config), **data, _shop_name=shop_name)
