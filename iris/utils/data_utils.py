@@ -70,7 +70,7 @@ def render_mask_card(mask_data: dict, color: tuple[int, int, int]) -> str:
     mask_base64 = image_to_base64(mask_rgb)
 
     metadata = [
-        ("Mask Hash:", mask_data['localization_hash']),
+        ("Mask Hash:", mask_data['hash']),
         ("Predicted IoU:", f"{mask_data['predicted_iou']:.3f}"),
         ("Crop Box:", mask_data['crop_box']),
         ("BBox:", f"[{x:.3f}, {y:.3f}, {w:.3f}, {h:.3f}]"),
@@ -280,7 +280,7 @@ def display_image_summary(
 
     # Metadata block
     metadata = [
-        ("Image Hash:", image_data['image_hash']),
+        ("Image Hash:", image_data['hash']),
         ("Num Localizations:", len(image_data['localizations']) if 'localizations' in image_data else 'Image not localized.'),
         ("Local Path:", f'<a href="{image_data["local_path"]}" style="color: #0066cc;">{image_data["local_path"]}</a>'),
         ("Original URL:", f'<a href="{image_data["original_url"]}" style="color: #0066cc;">{image_data["original_url"]}</a>'),
@@ -372,13 +372,13 @@ def display_product_summary(
         ("Price:", product_data['price']),
         ("Description:", product_data['description']),
         ("URL:", f'<a href="{product_data["url"]}" style="color: #0066cc;">{product_data["url"]}</a>'),
-        ("Hash:", product_data['product_hash']),
+        ("Hash:", product_data['hash']),
         ("Created At:", product_data['created_at'])
     ]
 
     # Image block
     product_images_html = render_product_images(
-        product_data['image_hashes'],
+        product_data['images'],
         mongodb_manager=mongodb_manager,
         max_image_size=max_image_size,
         columns=columns
@@ -424,7 +424,7 @@ def print_image_summary(
     print(separator)
     print(f"{' ' * int((total_width - len('Image Summary')) / 2)}Image Summary")
     print(separator)
-    print(f"{'Image Hash:':<{first_column_width}} {image_data['image_hash']}")
+    print(f"{'Image Hash:':<{first_column_width}} {image_data['hash']}")
     print(f"{'Num Masks:':<{first_column_width}} {len(image_data.get('localizations', [])) if 'localizations' in image_data else 'Image not segmented.'}")
     print(f"{'HTML Location:':<{first_column_width}} {image_data['html_location']}")
     print(f"{'Local Path:':<{first_column_width}} {image_data['local_path']}")
@@ -450,7 +450,7 @@ def print_product_summary(
     print(f"{' ' * int((total_width - len('Product Summary')) / 2)}Product Summary")
     print(separator)
     print(f"{'Title:':<{first_column_width}} {product_data['title']}")
-    print(f"{'Product Hash:':<{first_column_width}} {product_data['product_hash']}")
+    print(f"{'Product Hash:':<{first_column_width}} {product_data['hash']}")
     print(f"{'Price:':<{first_column_width}} {product_data['price']}")
 
     wrapped = textwrap.fill(product_data['description'], width=total_width - first_column_width)
@@ -458,7 +458,7 @@ def print_product_summary(
     print(f"{'Description:':<{first_column_width}} {indented.strip()}")
 
     print(f"{'URL:':<{first_column_width}} {product_data['url']}")
-    print(f"{'Num Images:':<{first_column_width}} {len(product_data['image_hashes'])}")
+    print(f"{'Num Images:':<{first_column_width}} {len(product_data['images'])}")
     print(f"{'Created At:':<{first_column_width}} {product_data['created_at']}")
     print(separator)
 
