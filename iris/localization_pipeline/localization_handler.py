@@ -474,7 +474,7 @@ class LocalizationHandler:
         updated_localizations = []
         for localization in localizations:
             # Add unique hash to mask
-            localization['localization_hash'] = self.model.generate_localization_hash(
+            localization['hash'] = self.model.generate_localization_hash(
                 image_hash, localization
             )
 
