@@ -1,7 +1,16 @@
 import hashlib
 from abc import ABC
+from iris.utils.log import logger
 
 class HashableMixin(ABC):
+    """
+    Mixin for computing a stable, content-based hash from document fields.
+
+    This mixin provides a default method for generating an MD5 hash from a
+    subset of the document's data. It assumes the implementing class has a
+    `data` attribute containing its raw field values.
+    """
+
     @property
     def hash_data(self) -> dict[str, any]:
         """
@@ -30,5 +39,9 @@ class HashableMixin(ABC):
         Returns:
             str: MD5 hex digest representing the content hash.
         """
-        canonical = str(sorted(self.hash_data.items())).encode("utf-8")
-        return hashlib.md5(canonical).hexdigest()
+        data = self.hash_data
+        canonical = str(sorted(data.items())).encode("utf-8")
+        hash_ = hashlib.md5(canonical).hexdigest()
+
+        logger.debug(f"Computed hash {hash_} from fields: {list(data.keys())}")
+        return hash_
