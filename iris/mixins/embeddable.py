@@ -5,7 +5,7 @@ from iris.data_pipeline.qdrant_manager import QdrantManager
 from iris.embedding_pipeline.embedder import Embedder
 from iris.utils.log import logger
 
-class Embeddable(ABC):
+class EmbeddableMixin(ABC):
     """
     Abstract interface for embeddable documents.
 
