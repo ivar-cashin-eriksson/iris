@@ -11,7 +11,7 @@ class Embeddable(ABC):
 
     This mixin defines the standard interface for computing, caching,
     retrieving, and saving embeddings. It assumes implementing classes
-    define `self.embedding` and `self.id` attributes.
+    define a `self.embedding` attribute.
     """
 
     @abstractmethod
@@ -46,29 +46,29 @@ class Embeddable(ABC):
             RuntimeError: If the embedding could not be retrieved or computed.
         """
         if self.embedding is not None:
-            logger.debug(f"Embedding already cached for document {self.id}")
+            logger.debug(f"Embedding already cached for document {self}")
             return self.embedding
 
         try:
             result = qdrant_manager.retrieve(self)
             if result:
                 self.set_embedding(result)
-                logger.info(f"Fetched embedding from Qdrant for document {self.id}")
+                logger.info(f"Fetched embedding from Qdrant for document {self}")
                 return self.embedding
         except Exception as e:
-            logger.warning(f"Failed to retrieve embedding from Qdrant for {self.id}: {e}")
+            logger.warning(f"Failed to retrieve embedding from Qdrant for {self}: {e}")
 
         try:
             result = self.embed(embedder)
             if result is not None:
                 self.set_embedding(result)
-                logger.info(f"Computed new embedding for document {self.id}")
+                logger.info(f"Computed new embedding for document {self}")
                 return self.embedding
         except Exception as e:
-            logger.warning(f"Embedding computation failed for {self.id}: {e}")
+            logger.warning(f"Embedding computation failed for {self}: {e}")
 
-        logger.error(f"No embedding available for document {self.id}")
-        raise RuntimeError(f"Embedding could not be retrieved or computed for document {self.id}")
+        logger.error(f"No embedding available for document {self}")
+        raise RuntimeError(f"Embedding could not be retrieved or computed for document {self}")
 
     def set_embedding(self, embedding: torch.Tensor) -> None:
         """
@@ -91,6 +91,6 @@ class Embeddable(ABC):
             NotImplementedError: Placeholder — implementation is pending.
         """
         if self.embedding is None:
-            logger.warning(f"Cannot save embedding for document {self.id} because it is None")
+            logger.warning(f"Cannot save embedding for document {self} because it is None")
         else:
             raise NotImplementedError("Embedding saving is not implemented yet.")
