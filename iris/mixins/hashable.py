@@ -1,11 +1,10 @@
 import hashlib
-from abc import ABC
 from typing import TypeAlias
 from iris.utils.log import logger
 
 DataType: TypeAlias = dict[str, any]  # TODO: Import from iris.models.document instead
 
-class HashableMixin(ABC):
+class HashableMixin:
     """
     Mixin for computing a stable, content-based hash from document fields.
 
