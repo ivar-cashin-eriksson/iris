@@ -29,14 +29,19 @@ class Localization(Document, RenderableMixin):
         score: float,
         bbox: list[float],
         model: str,
-        debugging_info: list | None = None,
+        debug_info: list | None = None,
         parent_image: Image
     ) -> Self:
         """
         Convert raw localization data into a structured Localization document.
 
         Args:
-            raw (dict): Raw localization data.
+            label (str): The label of the localization.
+            score (float): Confidence score for the localization.
+            bbox (list[float]): Bounding box coordinates in [x1, y1, x2, y2] format.
+            model (str): The model used to generate this localization.
+            debug_info (list | None): Optional debug information for this localization.
+            parent_image (Image): The parent Image instance this localization belongs to.
 
         Returns:
             Localization: A structured instance.
@@ -46,7 +51,7 @@ class Localization(Document, RenderableMixin):
             "score": score,
             "bbox": bbox,
             "model": model,
-            "debugging_info": debugging_info or []
+            "debug_info": debug_info or []
         }
 
         hash = cls.compute_hash_from_data(cls.hash_data_from_data(data, parent_image))
