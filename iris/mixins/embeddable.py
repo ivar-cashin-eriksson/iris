@@ -1,11 +1,11 @@
-from abc import ABC, abstractmethod
+from abc import abstractmethod
 import torch
 
 from iris.data_pipeline.qdrant_manager import QdrantManager
 from iris.embedding_pipeline.embedder import Embedder
 from iris.utils.log import logger
 
-class EmbeddableMixin(ABC):
+class EmbeddableMixin:
     """
     Abstract interface for embeddable documents.
 

@@ -1,8 +1,7 @@
-from abc import ABC, abstractmethod
 from iris.utils.log import logger
 import torch
 
-class SerializableMixin(ABC):
+class SerializableMixin:
     """
     Mixin for exporting a document to dictionary formats.
 
