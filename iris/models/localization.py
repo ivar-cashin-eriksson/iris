@@ -29,7 +29,7 @@ class Localization(Document, RenderableMixin):
         score: float,
         bbox: list[float],
         model: str,
-        debugging_information: list | None = None,
+        debugging_info: list | None = None,
         parent_image: Image
     ) -> Self:
         """
@@ -46,7 +46,7 @@ class Localization(Document, RenderableMixin):
             "score": score,
             "bbox": bbox,
             "model": model,
-            "debugging_information": debugging_information or []
+            "debugging_info": debugging_info or []
         }
 
         hash = cls.compute_hash_from_data(cls.hash_data_from_data(data, parent_image))
