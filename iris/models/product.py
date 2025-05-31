@@ -15,7 +15,8 @@ class Product(Document):
         title: str,
         description: str,
         url: str,
-        debugging_information: list | None = None
+        image_ids: list[str],
+        debugging_info: list | None = None
     ) -> Self:
         """
         Convert raw scraped data into a structured Product document.
@@ -24,7 +25,7 @@ class Product(Document):
             title (str): The product's title.
             description (str): The product's description.
             url (str): The URL of the product page.
-            debugging_information (list | None): Optional debugging information.
+            debugging_info (list | None): Optional debugging information.
 
         Returns:
             Product: A structured Product instance.
@@ -33,7 +34,8 @@ class Product(Document):
             "title": title,
             "description": description,
             "url": url,
-            "debugging_information": debugging_information or []
+            "image_ids": image_ids,
+            "debugging_info": debugging_info or []
         }
         hash = cls.compute_hash_from_data(cls.hash_data_from_data(data))
 
@@ -46,14 +48,12 @@ class Product(Document):
     @classmethod
     def hash_data_from_data(cls, data: DataType) -> DataType:
         """
-        Fields used to compute the content-based hash for the product.
+        Fields used to compute the hash for the product.
 
         Returns:
-            dict: Title, description, and url only.
+            dict: URL only.
         """
         return {
-            "title": data["title"],
-            "description": data["description"],
             "url": data["url"]
         }
     
