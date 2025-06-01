@@ -1,5 +1,6 @@
-from iris.utils.log import logger
 import torch
+from pathlib import Path
+from datetime import datetime, timezone
 
 class SerializableMixin:
     """
@@ -26,13 +27,8 @@ class SerializableMixin:
         """
         if not hasattr(self, "data"):
             raise AttributeError("Class using SerializableMixin must define `self.data`")
-
-        doc = self.data.copy()
-
-        if hasattr(self, "embedding") and isinstance(self.embedding, torch.Tensor):
-            doc["embedding"] = self.embedding.tolist()
-
-        return doc
+        
+        return self.data.copy()
 
     def to_mongo(self) -> dict[str, any]:
         """
@@ -43,9 +39,21 @@ class SerializableMixin:
         Returns:
             dict: MongoDB-ready document.
         """
+        doc = self.to_dict()
+
+        # Convert to BSON-compatible types
+        for key, value in doc.items():
+            if isinstance(value, torch.Tensor):
+                doc[key] = value.tolist()
+            elif isinstance(value, Path):
+                doc[key] = str(value)
+        
+        # Add `_id` field for MongoDB
         if not hasattr(self, "id"):
             raise AttributeError("Class using SerializableMixin must define `self.id`")
-
-        doc = self.to_dict()
         doc["_id"] = self.id
+
+        # Add timestamp field
+        doc["created_at"] = datetime.now(timezone.utc)
+
         return doc
