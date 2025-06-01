@@ -10,8 +10,12 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.ui import WebDriverWait
 from webdriver_manager.chrome import ChromeDriverManager
+from selenium.common.exceptions import (SessionNotCreatedException, 
+                                        TimeoutException, 
+                                        WebDriverException)
 
 from iris.config.data_pipeline_config_manager import ScraperConfig
+from iris.utils.log import logger
 
 
 class BaseScraper:
@@ -39,20 +43,8 @@ class BaseScraper:
         chrome_options.add_argument("--disable-extensions")
         chrome_options.add_argument("--disable-software-rasterizer")
 
-        # First try to find ChromeDriver in the project directory
-        project_root = Path(__file__).parent.parent.parent
-        chromedriver_path = project_root / "chromedriver.exe"  # Windows executable
-
-        if chromedriver_path.exists():
-            print(f"Using ChromeDriver from project directory: {chromedriver_path}")
-            service = Service(str(chromedriver_path))
-        else:
-            print("ChromeDriver not found in project directory, downloading...")
-            service = Service(ChromeDriverManager().install())
-
-        self.driver: WebDriver = webdriver.Chrome(
-            service=service, options=chrome_options
-        )
+        service = Service(ChromeDriverManager().install())
+        self.driver: WebDriver = webdriver.Chrome(service=service, options=chrome_options)
 
     def __del__(self):
         """
@@ -83,9 +75,12 @@ class BaseScraper:
                 )
             )
             return BeautifulSoup(self.driver.page_source, "html.parser")
-        except Exception as e:
-            print(f"Error loading {url}: {e}")
-            return None
+        except TimeoutException:
+            logger.warning(f"Timeout waiting for element on page: {url}")
+        except WebDriverException as e:
+            logger.warning(f"Selenium error while loading page {url}: {e}")
+
+        return None
 
     def extract_data(
         self, soup: BeautifulSoup, selectors: Dict[str, str]
