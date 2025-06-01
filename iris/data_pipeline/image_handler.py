@@ -8,6 +8,8 @@ from iris.config.data_pipeline_config_manager import ShopConfig, StorageConfig
 from iris.data_pipeline.mongodb_manager import MongoDBManager
 from iris.data_pipeline.utils import _get_url_hash
 
+from iris.models.image import Image
+
 
 class ImageHandler:
     """
@@ -76,55 +78,60 @@ class ImageHandler:
 
     def _get_image_data(self, img_element: BeautifulSoup) -> tuple[str, str] | None:
         """
-        Extract URL and location data from an image element.
+        Extract the image source URL and its DOM location from a single <img> element.
 
         Args:
-            img_element (BeautifulSoup): The image element to process.
+            img_element (BeautifulSoup): A single <img> tag parsed from the page.
 
         Returns:
-            tuple[str, str] | None: Tuple of (url, location) if URL is found, None otherwise.
+            tuple[str, str] | None: A tuple containing the image URL and a DOM location
+            string describing the element's position in the page structure.
         """
         src = img_element.get("src")
-        if not src:
-            return None
+        dom_location = self._get_element_path(img_element)
 
-        # Get the full path from root to the image
-        location = self._get_element_path(img_element)
-
-        return (src, location)
+        return (src, dom_location)
 
     def extract_image_urls(
-        self, 
-        soup: BeautifulSoup, 
+        self,
+        soup: BeautifulSoup,
         image_selector: str
-    ) -> list[tuple[str, str]]:
+    ) -> tuple[list[str], list[str]]:
         """
-        Extracts image URLs and their locations from the given BeautifulSoup object.
+        Extract all image URLs and their DOM locations from a parsed HTML document.
+
+        This method uses the given CSS selector to locate image elements or their containers,
+        then finds all <img> tags and extracts their "src" URLs along with a description
+        of where they appear in the document structure.
 
         Args:
-            soup (BeautifulSoup): Parsed HTML page.
-            image_selector (str): CSS selector for finding image elements.
+            soup (BeautifulSoup): Parsed HTML document.
+            image_selector (str): CSS selector to locate image containers or image tags.
 
         Returns:
-            List[tuple[str, str]]: A list of tuples containing (url, location) where location describes
-                                 where the URL was found in the HTML structure.
-        """
-        image_data = []
+            tuple[list[str], list[str]]: A pair of lists — one with image URLs,
+            and one with their corresponding DOM location descriptions.
+    """
+        image_urls = []
+        dom_locations = []
         elements = soup.select(image_selector)
 
         for element in elements:
             if element.name == "img":
                 # Directly an <img>, extract data
                 if data := self._get_image_data(element):
-                    image_data.append(data)
+                    image_urls.append(data[0])
+                    dom_locations.append(data[1])
             else:
                 # It's a container (e.g., <div>), find all <img> inside
                 for img in element.find_all("img"):
                     if data := self._get_image_data(img):
-                        image_data.append(data)
+                        image_urls.append(data[0])
+                        dom_locations.append(data[1])
 
-        return image_data
+        return image_urls, dom_locations
 
+    # TODO: Unused, remove
     def save_image_metadata(
         self, 
         img_url: str, 
@@ -198,48 +205,29 @@ class ImageHandler:
             print(f"Failed to download {img_url}: {e}")
             return None
 
-    def process_images(
-        self, soup: BeautifulSoup, image_selector: str, product_hash: str
-    ) -> list[str]:
+    def extract_images(
+        self, 
+        soup: BeautifulSoup,
+        image_selector: str
+    ) -> list[Image]:
         """
-        Process all images from a webpage: extract, download, and save metadata.
+        Extract image elements from a parsed HTML document and convert them into Image objects.
+
+        This method uses a CSS selector to locate <img> elements or equivalent, extracts their URLs
+        and DOM locations, and creates Image instances for each.
 
         Args:
-            soup (BeautifulSoup): Parsed HTML page.
-            image_selector (str): CSS selector for finding image elements.
-            product_hash (str): Hash of the product URL where images were found.
+            soup (BeautifulSoup): The parsed HTML content (soup object).
+            image_selector (str): A CSS selector targeting image elements to extract.
 
         Returns:
-            List[str]: List of image hashes that were processed.
+            list[Image]: List of Image instances of extracted images.
         """
-        image_data = self.extract_image_urls(soup, image_selector)
-        processed_image_hashes = []
+        urls, dom_locations = self.extract_image_urls(soup, image_selector)
+        images = []
 
-        for img_url, location in image_data:
-            # Generate a deterministic hash for the image URL
-            image_hash = _get_url_hash(img_url)
+        for url, dom_location in zip(urls, dom_locations):
+            image = Image.from_raw(url, debugging_info=[dom_location])
+            images.append(image)
 
-            # Check if we already have this image in MongoDB
-            existing_image = self.mongodb_manager.find_one(
-                "image_metadata", {"image_hash": image_hash}
-            )
-
-            if existing_image:
-                print(f"Image already exists in database: {img_url}")
-                processed_image_hashes.append(image_hash)
-                continue
-
-            # First download the image locally
-            local_path = self.download_image(img_url, image_hash)
-            if local_path:
-                # Then save the reference to MongoDB
-                self.save_image_metadata(
-                    img_url, 
-                    image_hash, 
-                    local_path, 
-                    product_hash, 
-                    location
-                )
-                processed_image_hashes.append(image_hash)
-
-        return processed_image_hashes
+        return images
