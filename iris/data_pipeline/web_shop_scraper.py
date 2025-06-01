@@ -33,8 +33,6 @@ class WebShopScraper:
     def __init__(
         self,
         shop_config: ShopConfig,
-        mongodb_config: MongoDBConfig,
-        mongodb_manager: MongoDBManager,
         product_handler: ProductHandler,
     ) -> None:
         """
@@ -42,14 +40,10 @@ class WebShopScraper:
 
         Args:
             shop_config (ShopConfig): Shop configuration
-            mongodb_config (MongoDBConfig): MongoDB configuration
             product_handler (ProductHandler): Handler for processing individual products
-            mongodb_manager (MongoDBManager): MongoDB manager for storing progress
         """
         self.shop_config = shop_config
-        self.mongodb_config = mongodb_config
         self.product_handler = product_handler
-        self.mongodb_manager = mongodb_manager
 
         # Initialize the base scraper
         self.scraper = BaseScraper(self.shop_config.scraper_config)
@@ -57,33 +51,10 @@ class WebShopScraper:
         # Set to track processed URLs
         self.processed_urls: Set[str] = set()
 
-        # Load progress from MongoDB
-        self._load_progress()
-
     def __del__(self):
         """Cleanup: Close the base scraper"""
         if hasattr(self, "scraper"):
             del self.scraper
-
-    def _load_progress(self) -> None:
-        """Load previously processed URLs from MongoDB."""
-        processed_docs = self.mongodb_manager.find_all(
-            self.mongodb_config.scraping_progress_collection,
-            {"shop_url": self.shop_config.base_url},
-        )
-        self.processed_urls = {doc["url"] for doc in processed_docs}
-
-    def _save_progress(self, url: str) -> None:
-        """Save processed URL to MongoDB."""
-        self.mongodb_manager.update_one(
-            self.mongodb_config.scraping_progress_collection,
-            {"url": url},
-            {
-                "url": url,
-                "shop_url": self.shop_config.base_url,
-                "processed_at": time.time(),
-            },
-        )
 
     def _normalize_url(self, url: str) -> str:
         """
@@ -105,7 +76,7 @@ class WebShopScraper:
         # Only keep scheme, netloc, and path
         return f"{parsed.scheme}://{parsed.netloc}{parsed.path}"
 
-    def _is_valid_product_url(self, url: str) -> bool:
+    def _is_product_url(self, url: str) -> bool:
         """
         Check if URL is a valid product URL based on configured selectors.
 
@@ -113,54 +84,40 @@ class WebShopScraper:
             url (str): URL to validate
 
         Returns:
-            bool: True if URL matches product pattern and doesn't match collection or page patterns
+            bool: True if URL matches product pattern and doesn't match 
+                  collection or page patterns
         """
         # Normalize the URL first
         normalized_url = self._normalize_url(url)
 
-        # Convert CSS selectors to regex patterns
-        # For example: a[href*='/products/'] -> /products/
-        product_link = self.shop_config.scraper_config.selectors['product']
-        product_pattern = product_link.split("*=")[
-            1
-        ].strip("[]'\"")
-        category_link = self.shop_config.scraper_config.selectors['category']
-        category_pattern = category_link.split("*=")[
-            1
-        ].strip("[]'\"")
-
-        # Create regex patterns
-        product_regex = re.compile(product_pattern)
-        category_regex = re.compile(category_pattern)
-
-        # Check if URL matches product pattern and doesn't match category pattern
-        if not product_regex.search(normalized_url) or category_regex.search(
-            normalized_url
-        ):
-            return False
-
-        return True
+        pattern = self.shop_config.scraper_config.patterns["product"]
+        return re.search(pattern, url) is not None
 
     def _extract_links(self, soup: BeautifulSoup) -> set[str]:
         """
         Process a single page and extract product, category, and pagination links.
 
         Args:
-            url (str): URL of the page to process.
+            soup (BeautifulSoup): Parsed HTML of the page.
 
         Returns:
             set[str]: Set of extracted URLs.
         """
-        links = set()
-        
-        for selector in self.shop_config.scraper_config.selectors.values():
-            links.update({
+        all_links = {
             self._normalize_url(a["href"])
-            for a in soup.select(selector)
-            if a.has_attr("href")
-        })
+            for a in soup.find_all("a", href=True)
+        }
 
-        return links
+        # Filter: must contain base_url and match one of the patterns
+        base_url = self.shop_config.base_url
+        patterns = self.shop_config.scraper_config.patterns
+        matched_links = {
+            url for url in all_links
+            if base_url in url and any(re.search(pattern, url) 
+                                       for pattern in patterns.values())
+        }
+
+        return matched_links
 
     def scrape(self) -> Iterator[tuple[Product, list[Image]]]:
         """
@@ -206,7 +163,7 @@ class WebShopScraper:
             )
 
             # Process product URLs
-            if self._is_valid_product_url(url):
+            if self._is_product_url(url):
                 extracted = self.product_handler.process_product_page(url, soup)
 
                 if extracted is not None:
@@ -216,7 +173,6 @@ class WebShopScraper:
 
             # Mark this URL as processed
             self.processed_urls.add(url)
-            self._save_progress(url)
 
             # Rate limiting
             time.sleep(self.shop_config.scraper_config.rate_limit)
