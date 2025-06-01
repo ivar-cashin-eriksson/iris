@@ -29,7 +29,7 @@ class Document(ABC, EmbeddableMixin, HashableMixin, SerializableMixin):
             data (dict): Raw field data from the database.
             embedding (torch.Tensor | None): Optional in-memory embedding.
         """
-        self.id = data['_id']
+        self.id: str = data['_id']
         self.data: DataType = data
         self.embedding: torch.Tensor | None = None
 
