@@ -8,6 +8,7 @@ from iris.mixins.serializable import SerializableMixin
 
 DataType: TypeAlias = dict[str, any]
 
+
 class Document(ABC, EmbeddableMixin, HashableMixin, SerializableMixin):
     """
     Abstract base class for all document types in Iris.
