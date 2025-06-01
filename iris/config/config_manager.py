@@ -17,9 +17,9 @@ class BaseConfig:
     _config_paths: dict[str, Path]
     shop_config_path: Path
     mongodb_config_path: Path
+    image_store_config_path: Path
     qdrant_config_path: Path
     scraper_config_path: Path
-    storage_config_path: Path
     clip_config_path: Path
     embeddingdb_config_path: Path
     localization_config_path: Path

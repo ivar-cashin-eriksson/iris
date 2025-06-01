@@ -1,0 +1,5 @@
+# Storage configuration
+storage_backend = "local" # Options: local, s3, gcs, etc.
+_path_template = "data/{env}/{shop_name}/images/"  # Template for shop-specific paths
+cache_enabled = true  # Enable caching for faster access
+timeout = 10
