@@ -2,7 +2,7 @@
 Configuration manager for data pipeline.
 """
 
-from dataclasses import dataclass, asdict
+from dataclasses import dataclass, asdict, field
 from pathlib import Path
 import os
 
@@ -21,9 +21,11 @@ class ScraperConfig:  # TODO: Should this be an abstract class?
     max_retries: int = 3
     timeout: int = 30
     wait_for_selector: str = "img"
-    pagination_link: str = "a[rel='next']"
-    product_link: str = "a[href*='/products/']"
-    category_link: str = "a[href*='/collections/']"
+    selectors: dict[str, str] = field(default_factory=lambda: {
+        "pagination": "a[rel='next']",
+        "product": "a[href*='/products/']",
+        "category": "a[href*='/collections/']"
+    })
 
 
 @dataclass(frozen=True)
