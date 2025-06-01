@@ -222,7 +222,7 @@ def display_image_summary(
     show_localizations: bool = True
 ) -> None:
     image_data = mongodb_manager.get_collection(
-        mongodb_manager.mongodb_config.image_metadata_collection
+        mongodb_manager.config.image_metadata_collection
     ).find_one({"image_hash": image_hash})
 
     if image_data is None:
@@ -328,7 +328,7 @@ def render_product_images(image_hashes: list, mongodb_manager: MongoDBManager, m
     tiles = []
     for image_hash in image_hashes:
         image_data = mongodb_manager.get_collection(
-            mongodb_manager.mongodb_config.image_metadata_collection
+            mongodb_manager.config.image_metadata_collection
         ).find_one({"image_hash": image_hash})
         img = Image.open(image_data['local_path'])
         if max(img.size) > max_image_size:
@@ -362,7 +362,7 @@ def display_product_summary(
     columns: int = 3
 ):
     product_data = mongodb_manager.get_collection(
-        mongodb_manager.mongodb_config.product_collection
+        mongodb_manager.config.product_collection
     ).find_one({"product_hash": product_hash})
     if product_data is None:
         raise ValueError(f"No product found with hash: {product_hash}")
@@ -415,7 +415,7 @@ def print_image_summary(
     first_column_width: int = 20
 ):
     image_data = mongodb_manager.get_collection(
-        mongodb_manager.mongodb_config.image_metadata_collection
+        mongodb_manager.config.image_metadata_collection
     ).find_one({"image_hash": image_hash})
     if image_data is None:
         raise ValueError(f"No image found with hash: {image_hash}")
@@ -440,7 +440,7 @@ def print_product_summary(
     first_column_width: int = 20
 ):
     product_data = mongodb_manager.get_collection(
-        mongodb_manager.mongodb_config.product_collection
+        mongodb_manager.config.product_collection
     ).find_one({"product_hash": product_hash})
     if product_data is None:
         raise ValueError(f"No product found with hash: {product_hash}")

@@ -1,53 +1,36 @@
-
 from bs4 import BeautifulSoup
-from typing import Dict
 
-from iris.config.data_pipeline_config_manager import ShopConfig, StorageConfig
+from iris.config.data_pipeline_config_manager import ShopConfig
 from iris.data_pipeline.base_scraper import BaseScraper
 from iris.data_pipeline.image_handler import ImageHandler
-from iris.data_pipeline.mongodb_manager import MongoDBManager
-from iris.data_pipeline.utils import _get_url_hash
-from iris.utils.log import logger
-
 from iris.models.product import Product
 from iris.models.image import Image
+from iris.utils.log import logger
 
 
 class ProductHandler:
     """
-    A class for handling product-specific scraping operations.
+    A class for scraping product data.
 
     Features:
     - Product page loading and parsing
     - Product metadata extraction
-    - Product data storage in MongoDB
-    - Product-image relationship management
     """
 
     def __init__(
         self,
         shop_config: ShopConfig,
-        storage_config: StorageConfig,
-        mongodb_manager: MongoDBManager,
     ) -> None:
         """
         Initialize the ProductHandler.
 
         Args:
             shop_config (ShopConfig): Shop config instance.
-            mongodb_manager (MongoDBManager): MongoDB manager instance.
         """
         self.shop_config = shop_config
-        self.storage_config = storage_config
-        self.mongodb_manager = mongodb_manager
 
         # Initialize the base scraper and image handler
         self.scraper = BaseScraper(self.shop_config.scraper_config)
-        self.image_handler = ImageHandler(
-            self.shop_config, 
-            self.storage_config, 
-            self.mongodb_manager
-        )
 
     def __del__(self):
         """
@@ -89,7 +72,7 @@ class ProductHandler:
         images: list[Image] = []
         for image_selector in self.shop_config.image_selectors.values():
             images.extend(
-                self.image_handler.extract_images(
+                ImageHandler.extract_images(
                     soup,
                     image_selector=image_selector
                 )

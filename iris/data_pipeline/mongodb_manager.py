@@ -27,14 +27,14 @@ class MongoDBManager:
     - Context manager support
     """
 
-    def __init__(self, mongodb_config: MongoDBConfig) -> None:
+    def __init__(self, config: MongoDBConfig) -> None:
         """
         Initialize the MongoDB manager.
 
         Args:
-            mongodb_config (MongoDBConfig): MongoDB configuration
+            config (MongoDBConfig): MongoDB configuration
         """
-        self.mongodb_config = mongodb_config
+        self.config = config
         self._client: MongoClient | None = None
         self._db: Database | None = None
         self._collections: dict[str, Collection] = {}
@@ -52,11 +52,11 @@ class MongoDBManager:
         """Establish connection to MongoDB."""
         if self._client is None:
             self._client = MongoClient(
-                self.mongodb_config.connection_string,
-                tlsAllowInvalidCertificates=self.mongodb_config.tls_allow_invalid_certificates,
+                self.config.connection_string,
+                tlsAllowInvalidCertificates=self.config.tls_allow_invalid_certificates,
             )
             # Use shop-specific database name
-            database_name = self.mongodb_config.database_name
+            database_name = self.config.database_name
             self._db = self._client[database_name]
 
     def close(self) -> None:
