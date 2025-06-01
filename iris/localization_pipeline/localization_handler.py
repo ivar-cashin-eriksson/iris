@@ -494,7 +494,7 @@ class LocalizationHandler:
 
         # Use the MongoDBManager's update_one method to overwrite existing localizations
         return mongodb_manager.update_one(
-            collection_name=mongodb_manager.mongodb_config.image_metadata_collection,
+            collection_name=mongodb_manager.config.image_metadata_collection,
             filter_query={"image_hash": image_hash},
             update_data={"localizations": updated_localizations},
             upsert=False
