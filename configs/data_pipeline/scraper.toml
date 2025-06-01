@@ -5,8 +5,7 @@ timeout = 30
 user_agent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
 wait_for_selector = "img"
 
-[selectors]
-product = "a[href*='/products/']"
-pagination = "a[rel='next']"
-category = "a[href*='/collections/']"
-
+[patterns]
+product = "/products/.+"
+collection = "/collections/.+"
+pagination = "/page/\\d+"
