@@ -4,6 +4,7 @@ base_url = "https://nikolajstorm.com/"
 
 [image_selectors]
 images = '''div.elementor.elementor-8061.elementor-location-single.product > div > div > div.elementor-element.elementor-element-c344227.e-flex.e-con-boxed.e-con.e-child > div > div > div > div > div > div.woocommerce-product-gallery__wrapper img[data-large_image]'''
+single_image = '''body > div.elementor.elementor-8061.elementor-location-single.product > div > div > div.elementor-element.elementor-element-c344227.e-flex.e-con-boxed.e-con.e-child > div > div > div > div > div > div > a > img'''
 
 [metadata_selectors]
 title = '''div.elementor.elementor-8061.elementor-location-single.product > div > div > div.elementor-element.elementor-element-3500d0b.e-flex.e-con-boxed.e-con.e-child > div > div.elementor-element.elementor-element-e676599.elementor-widget.elementor-widget-woocommerce-product-title.elementor-page-title.elementor-widget-heading > div > h1'''
@@ -12,6 +13,8 @@ description = '''div.elementor.elementor-8061.elementor-location-single.product 
 
 [scraper_overrides]
 rate_limit = 0.0
-pagination_link = "a[href*='/page/']"
-product_link = "a[href*='/webshop/']"
-category_link = "a[href*='/vare-kategori/']"
+
+[scraper_overrides.selectors]
+product = "a[href*='/webshop/']:not([href$='/webshop/'])"
+pagination = "a[href*='/page/']"
+category = "a[href*='/vare-kategori/']"
