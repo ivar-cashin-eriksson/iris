@@ -40,11 +40,14 @@ class ShopConfig:
 
 
 @dataclass(frozen=True, kw_only=True)  # kw_only=True due to inheritance of BaseConfig
-class StorageConfig(BaseConfig):
+class ImageStoreConfig(BaseConfig):
     """Storage configuration."""
 
+    storage_backend: str = "local"
     storage_path: Path = None
-    _path_template: str = "data/{env}/{shop_name}"
+    _path_template: str = "data/{env}/{shop_name}/images/"
+    cache_enabled: bool = True
+    timeout: int = 10
     _shop_name: str
 
     def __post_init__(self) -> None:
@@ -52,7 +55,11 @@ class StorageConfig(BaseConfig):
             env=self.environment,
             shop_name=self._shop_name
         )
-        object.__setattr__(self, "storage_path", self.base_path / computed_path)
+
+        if self.storage_backend == 'local':
+            object.__setattr__(self, "storage_path", self.base_path / computed_path)
+        else:
+            object.__setattr__(self, "storage_path", Path(computed_path))
 
 
 @dataclass(frozen=True, kw_only=True)  # kw_only=True due to inheritance of BaseConfig
@@ -141,10 +148,10 @@ class DataPipelineConfigManager(ConfigManager):
         shop_config_data = self._load_toml(self.base_config.shop_config_path)
         self.shop_config: ShopConfig = self._create_shop_config(shop_config_data)
 
-        # Load Storage Config
-        storage_data = self._load_toml(self.base_config.storage_config_path)
-        self.storage_config: StorageConfig = self._create_storage_config(
-            storage_data,
+        # Load Image Store Config
+        image_store_data = self._load_toml(self.base_config.image_store_config_path)
+        self.image_store_config: ImageStoreConfig = self._create_image_store_config(
+            image_store_data,
             self.shop_config.shop_name
         )
 
@@ -184,8 +191,8 @@ class DataPipelineConfigManager(ConfigManager):
         # Make ShopConfig
         return ShopConfig(**data, scraper_config=scraper_config)
     
-    def _create_storage_config(self, data: dict, shop_name: str) -> StorageConfig:
-        return StorageConfig(**asdict(self.base_config), **data, _shop_name=shop_name)
+    def _create_image_store_config(self, data: dict, shop_name: str) -> ImageStoreConfig:
+        return ImageStoreConfig(**asdict(self.base_config), **data, _shop_name=shop_name)
 
     def _create_mongodb_config(self, data: dict, shop_name: str) -> MongoDBConfig:
         return MongoDBConfig(**asdict(self.base_config), **data, _shop_name=shop_name)

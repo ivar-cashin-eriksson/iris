@@ -1,2 +1,0 @@
-# Storage configuration
-_path_template = "data/{env}/{shop_name}"  # Template for shop-specific paths
