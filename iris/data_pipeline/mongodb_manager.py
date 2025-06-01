@@ -1,11 +1,14 @@
 import datetime
 from typing import Any, TypeAlias, Self
+from collections.abc import Iterable
 
 from pymongo import MongoClient
 from pymongo.collection import Collection
 from pymongo.database import Database
 
 from iris.config.data_pipeline_config_manager import MongoDBConfig
+from iris.models.document import Document
+from iris.models.factory import factory as document_factory
 
 # Type aliases
 DocumentType: TypeAlias = dict[str, Any]
@@ -22,18 +25,6 @@ class MongoDBManager:
     - Collection access and management
     - Common database operations (insert, update, find)
     - Context manager support
-
-    Example usage:
-        ```python
-        config = MongoDBConfig(...)
-        with MongoDBManager(config) as db:
-            # Insert document
-            doc_id = db.insert_one("collection_name", {"field": "value"})
-            
-            # Find document
-            result = db.find_one("collection_name", {"field": "value"})
-        # Connection is automatically closed after with block
-        ```
     """
 
     def __init__(self, mongodb_config: MongoDBConfig) -> None:
@@ -92,49 +83,49 @@ class MongoDBManager:
             self._collections[collection_name] = self._db[collection_name]
         return self._collections[collection_name]
 
-    def insert_one(self, collection_name: str, document: DocumentType) -> str:
-        """
-        Insert a single document into a collection.
-
-        Args:
-            collection_name (str): Name of the collection
-            document (dict): Document to insert
-
-        Returns:
-            str: ID of the inserted document
-        """
-        collection = self.get_collection(collection_name)
-        result = collection.insert_one(document)
-        return str(result.inserted_id)
-
-    def update_one(
+    def upsert(
         self,
         collection_name: str,
-        filter_query: QueryType,
-        update_data: DocumentType,
-        upsert: bool = True,
-    ) -> bool:
+        docs: Document | Iterable[Document]
+    ) -> int:
         """
-        Update a single document in a collection.
+        Upsert one or many documents into the specified MongoDB collection.
 
         Args:
-            collection_name (str): Name of the collection
-            filter_query (dict): Query to find the document
-            update_data (dict): Data to update
-            upsert (bool): Whether to create if document doesn't exist
+            collection_name (str): Target MongoDB collection.
+            docs (Document or Iterable[Document]): One or more Document instances.
 
         Returns:
-            bool: True if document was updated or created
+            int: Number of documents inserted or updated.
         """
         collection = self.get_collection(collection_name)
-        result = collection.update_one(
-            filter_query, {"$set": update_data}, upsert=upsert
-        )
-        return result.modified_count > 0 or result.upserted_id is not None
+
+        if isinstance(docs, Document):
+            result = collection.update_one(
+                {"_id": docs.id},
+                {"$set": docs.to_mongo()},
+                upsert=True
+            )
+            return int(result.modified_count > 0 or result.upserted_id is not None)
+
+        # Assume iterable of documents
+        count = 0
+        for doc in docs:
+            result = collection.update_one(
+                {"_id": doc.id},
+                {"$set": doc.to_mongo()},
+                upsert=True
+            )
+            if result.modified_count > 0 or result.upserted_id is not None:
+                count += 1
+
+        return count
 
     def find_one(
-        self, collection_name: str, query: QueryType
-    ) -> DocumentType | None:
+        self, 
+        collection_name: str, 
+        query: QueryType
+    ) -> Document | None:
         """
         Find a single document in a collection.
 
@@ -143,66 +134,29 @@ class MongoDBManager:
             query (dict): Query to find the document
 
         Returns:
-            Optional[dict]: Found document or None
+            Document | None: Found document or None
         """
         collection = self.get_collection(collection_name)
-        return collection.find_one(query)
+        data = collection.find_one(query)
+
+        return document_factory(data) if data else None
 
     def find_all(
-        self, collection_name: str, query: QueryType | None = None
-    ) -> list[DocumentType]:
+        self, 
+        collection_name: str, 
+        query: QueryType | None = None
+    ) -> list[Document]:
         """
         Find documents in a collection.
 
         Args:
             collection_name (str): Name of the collection
-            query (dict | None): Query to filter documents. If None, returns all documents.
+            query (QueryType | None): Query to filter documents. If None, 
+                                      returns all documents.
 
         Returns:
-            list[dict]: List of found documents
+            list[Document]: List of found documents
         """
         collection = self.get_collection(collection_name)
         cursor = collection.find(query) if query else collection.find()
-        return list(cursor)
-
-    def delete_one(self, collection_name: str, query: QueryType) -> bool:
-        """
-        Delete a single document from a collection.
-
-        Args:
-            collection_name (str): Name of the collection
-            query (dict): Query to find the document to delete
-
-        Returns:
-            bool: True if document was deleted
-        """
-        collection = self.get_collection(collection_name)
-        result = collection.delete_one(query)
-        return result.deleted_count > 0
-
-    def count_documents(self, collection_name: str, query: QueryType) -> int:
-        """
-        Count documents in a collection matching a query.
-
-        Args:
-            collection_name (str): Name of the collection
-            query (dict): Query to match documents
-
-        Returns:
-            int: Number of matching documents
-        """
-        collection = self.get_collection(collection_name)
-        return collection.count_documents(query)
-
-    def add_timestamp(self, document: DocumentType) -> DocumentType:
-        """
-        Add a timestamp to a document.
-
-        Args:
-            document (dict): Document to add timestamp to
-
-        Returns:
-            dict: Document with timestamp added
-        """
-        document["created_at"] = datetime.datetime.utcnow()
-        return document
+        return [document_factory(doc) for doc in cursor]
