@@ -101,7 +101,7 @@ class ProductHandler:
             description=product_data["description"],
             url=url,
             image_ids=[image.id for image in images],
-            debugging_info=product_data.get("debugging_info", [])
+            debug_info=product_data.get("debug_info", dict())
         )
 
         return product, images
