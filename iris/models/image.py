@@ -2,14 +2,25 @@ from typing import Self
 import torch
 
 from iris.models.document import Document, DataType
-from iris.models.product import Product
 from iris.mixins.renderable import RenderableMixin
 from iris.embedding_pipeline.embedder import Embedder
+
+from iris.data_pipeline.image_store_manager import ImageStoreManager
+from PIL import Image as PILImage
 
 class Image(Document, RenderableMixin):
     """
     Represents an image document, which may contain localizations.
     """
+    def __init__(self, data: DataType):
+        """
+        Initialize an Image document.
+
+        Args:
+            data (dict): The data dictionary containing image metadata.
+        """
+        super().__init__(data)
+        self._loaded_image: PILImage.Image | None = None
 
     @classmethod
     def from_raw(
@@ -52,5 +63,20 @@ class Image(Document, RenderableMixin):
             "url": data["url"]
         }
 
+    def load_image(self, store: ImageStoreManager) -> None:
+        self._loaded_image, storage_path = store.resolve(
+            self.data.get("storage_path"), 
+            self.data["url"],
+            self.id
+        )
+        self.data["storage_path"] = storage_path
+
+    def image(self, store: ImageStoreManager | None = None) -> PILImage.Image:
+        if self._loaded_image is None:
+            if store is None:
+                raise RuntimeError("No image loaded and no store provided")
+            self.load_image(store)
+        return self._loaded_image
+    
     def embed(self, embedder: Embedder) -> torch.Tensor:
-        return embedder.embed_image(self.data["storage_path"])
+        return embedder.embed_image(self.image())  # TODO maybe storage manager should be passed here?
