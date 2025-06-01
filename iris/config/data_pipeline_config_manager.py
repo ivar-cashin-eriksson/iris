@@ -21,10 +21,10 @@ class ScraperConfig:  # TODO: Should this be an abstract class?
     max_retries: int = 3
     timeout: int = 30
     wait_for_selector: str = "img"
-    selectors: dict[str, str] = field(default_factory=lambda: {
-        "pagination": "a[rel='next']",
-        "product": "a[href*='/products/']",
-        "category": "a[href*='/collections/']"
+    patterns: dict[str, str] = field(default_factory=lambda: {
+        "product": "/products/.+",
+        "collection": "/collections/.+",
+        "pagination": "/page/\\d+"
     })
 
 

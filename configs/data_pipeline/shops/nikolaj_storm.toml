@@ -14,7 +14,7 @@ description = '''div.elementor.elementor-8061.elementor-location-single.product 
 [scraper_overrides]
 rate_limit = 0.0
 
-[scraper_overrides.selectors]
-product = "a[href*='/webshop/']:not([href$='/webshop/'])"
-pagination = "a[href*='/page/']"
-category = "a[href*='/vare-kategori/']"
+[scraper_overrides.patterns]
+product = "/webshop/.+"
+collection = "/vare-kategori/.+"
+pagination = "/page/\\d+"
