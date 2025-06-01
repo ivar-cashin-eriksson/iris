@@ -161,7 +161,6 @@ class ImageHandler:
             }
 
             # Add timestamp and save to MongoDB
-            image_doc = self.mongodb_manager.add_timestamp(image_doc)
             self.mongodb_manager.update_one(
                 "image_metadata", {"image_hash": image_hash}, image_doc
             )
@@ -227,7 +226,7 @@ class ImageHandler:
         images = []
 
         for url, dom_location in zip(urls, dom_locations):
-            image = Image.from_raw(url, debugging_info=[dom_location])
+            image = Image.from_raw(url, debug_info={"dom_location": dom_location})
             images.append(image)
 
         return images

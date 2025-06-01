@@ -15,7 +15,7 @@ class Image(Document, RenderableMixin):
     def from_raw(
         cls, 
         url: str,
-        debug_info: list | None = None
+        debug_info: dict | None = None
     ) -> Self:
         """
         Convert raw scraped data into a structured Image document.
@@ -23,14 +23,14 @@ class Image(Document, RenderableMixin):
         Args:
             url (str): The URL of the image.
             storage_path (str): Path where the image is stored.
-            debug_info (list | None): Optional debugging information.
+            debug_info (dict | None): Optional debugging information.
 
         Returns:
             Image: A structured Image instance.
         """
         data = {
             "url": url,
-            "debug_info": debug_info or []
+            "debug_info": debug_info or dict()
         }
         hash = cls.compute_hash_from_data(cls.hash_data_from_data(data))
 
