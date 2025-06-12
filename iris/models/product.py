@@ -1,122 +1,102 @@
-from typing import Self
+from dataclasses import dataclass, field
 import torch
 
 from iris.models.document import Document, DataType
+from iris.mixins.embeddable import EmbeddingPayload
 from iris.embedding_pipeline.embedder import Embedder
+from iris.protocols.context_protocols import HasFullContext
 
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from iris.models.localization import Localization
+    from iris.models.image import Image
+
+
+@dataclass(repr=False, kw_only=True)
 class Product(Document):
     """
     Represents a product listed in the web shop.
     """
+    
+    type: str = "product"
+    title: str
+    description: str
+    url: str
+    image_hashes: list[str] = field(default_factory=list)
+    localization_hashes: list[str] = field(default_factory=list)
 
-    @classmethod
-    def from_raw(
-        cls, 
-        title: str,
-        description: str,
-        url: str,
-        image_ids: list[str],
-        debug_info: dict | None = None
-    ) -> Self:
-        """
-        Convert raw scraped data into a structured Product document.
-
-        Args:
-            title (str): The product's title.
-            description (str): The product's description.
-            url (str): The URL of the product page.
-            debug_info (dict | None): Optional debugging information.
-
-        Returns:
-            Product: A structured Product instance.
-        """
-        data = {
-            "title": title,
-            "description": description,
-            "url": url,
-            "image_ids": image_ids,
-            "debug_info": debug_info or dict()
-        }
-        hash = cls.compute_hash_from_data(cls.hash_data_from_data(data))
-
-        # Create complete data structure
-        data["_id"] = hash
-        data["type"] = "product"
-        
-        return cls(data)
-
-    @classmethod
-    def hash_data_from_data(cls, data: DataType) -> DataType:
+    @property
+    def hash_data(self) -> DataType:
         """
         Fields used to compute the hash for the product.
 
         Returns:
-            dict: URL only.
+            dict: Type and URL only.
         """
-        return {
-            "url": data["url"]
-        }
+        data = super().hash_data
+        data["type"] = self.type
+        data["url"] = self.url
+
+        return data
+
+    def load_localization_ids(
+            self, 
+            embedder: 
+            Embedder, 
+            context: 
+            HasFullContext
+        ) -> None:
+        """
+        Load localizations for the product from the context.
+
+        Args:
+            context (HasFullContext): The context to load localizations from.
+        """
+        self.localization_hashes = []
+        text_embedding = embedder.embed(self)  # Embed the product's title and description
+
+        images: list["Image"] = context.find_all(
+            context.config.image_metadata_collection,
+            self.image_hashes
+        )
+        
+        for image in images:
+            localizations: list["Localization"] = context.find_all(
+                context.config.image_metadata_collection,
+                image.localization_hashes
+            )
+
+            # Get the localization with the closest embedding to the product's
+            # title and description embedding
+            closest_localization = None
+            closest_distance = float("inf")
+            for localization in localizations:
+                localization_embedding = embedder.embed(localization)
+                # TODO: Let some utility handle this, probably qdrant
+                distance = torch.dist(text_embedding, localization_embedding).item()
+                
+                if distance < closest_distance:
+                    closest_distance = distance
+                    closest_localization = localization
+
+            self.localization_hashes.append(closest_localization.hash)
     
-    @property
-    def images(self):
-        """
-        Lazily access loaded image objects.
+    def get_embedding_data(self, context: HasFullContext) -> EmbeddingPayload:
 
-        Raises:
-            RuntimeError: If images have not been loaded.
+        embedding_payload =  EmbeddingPayload.from_items(
+            [self.title, self.description],
+            ["title", "description"]
+        )
 
-        Returns:
-            list: List of Image objects associated with this document.
-        """
-        if self._images is None:
-            raise RuntimeError("Images not loaded. Call `load_images()` first.")
-        return self._images
+        localizations: list["Localization"] = context.find_all(
+            context.config.image_metadata_collection,
+            self.localization_hashes
+        )
 
-    def load_images(self, mongo_handler):
-        """
-        Load image documents from MongoDB based on stored image IDs.
+        for localization in localizations:
+            embedding_payload.components.extend(
+                localization.get_embedding_data(context).components
+            )
 
-        Args:
-            mongo_handler: An instance of MongoDBManager for loading images.
-
-        Returns:
-            list: List of loaded Image objects.
-        """
-        from iris.document_types.image import Image  # avoid circular import
-        image_docs = mongo_handler.find_images_by_ids(self.data.get("image_ids", []))
-        self._images = [Image(doc) for doc in image_docs]
-        return self._images
-
-    def embed_text(self, embedder: Embedder) -> torch.Tensor:
-        """
-        Generate an embedding from the product's title and description.
-
-        Args:
-            embedder: An embedding model with `embed_text()` method.
-
-        Returns:
-            torch.Tensor: The product's embedding vector.
-        """
-        text = f"{self.data.get('title', '')} {self.data.get('description', '')}".strip()
-        return embedder.embed_text(text)
-
-    def embed(self, embedder: Embedder) -> torch.Tensor:
-        """
-        Generate an embedding from the product.
-
-        Args:
-            embedder: An embedding model with `embed_text()` method.
-
-        Returns:
-            torch.Tensor: The product's embedding vector.
-        """
-        embeddings = []
-        text_embedding = self.embed_text(embedder)
-        embeddings.append(text_embedding)
-
-        # TODO: Add localisation embeddings
-        raise NotImplementedError("Localization embeddings not implemented yet.")
-
-        embedding = torch.stack(embeddings).mean(dim=0)
-
-        return embedding
+        return embedding_payload

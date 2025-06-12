@@ -1,55 +1,50 @@
+from dataclasses import dataclass, field, asdict
 from abc import ABC, abstractmethod
-import torch
 from typing import TypeAlias, Self
 
-from iris.mixins.embeddable import EmbeddableMixin
 from iris.mixins.hashable import HashableMixin
 from iris.mixins.serializable import SerializableMixin
+from iris.mixins.embeddable import EmbeddableMixin
 
 DataType: TypeAlias = dict[str, any]
 
-
-class Document(ABC, EmbeddableMixin, HashableMixin, SerializableMixin):
+@dataclass(kw_only=True)
+class Document(ABC, HashableMixin, SerializableMixin, EmbeddableMixin):
     """
     Abstract base class for all document types in Iris.
 
     A Document represents a structured, embeddable, hashable, and serializable
-    unit of data, typically backed by MongoDB. Subclasses must implement
-    `from_raw()` to define how raw scraped data is converted into a structured document.
+    unit of data, typically backed by MongoDB.
     """
 
-    def __init__(self, data: DataType):
+    _id: str | None = None
+    created_at: str | None = None
+    hash: str | None = None
+    type: str
+    debug_info: dict = field(default_factory=dict)
+    
+    def __post_init__(self):
         """
-        Initialize a Document with structured data from MongoDB.
-
-        Args:
-            data (dict): The raw MongoDB document data, including `_id`.
-
-        Attributes:
-            id (str | ObjectId): The MongoDB identifier for this document.
-            data (dict): Raw field data from the database.
-            embedding (torch.Tensor | None): Optional in-memory embedding.
+        Post-initialization to set the document ID and ensure image IDs are unique.
         """
-        self.id: str = data['_id']
-        self.data: DataType = data
-        self.embedding: torch.Tensor | None = None
+        if self.type is None:
+            raise ValueError("Document type must be specified")
+
+        if self.hash is None:
+            self.hash = self.compute_hash()
 
     @classmethod
-    @abstractmethod
-    def from_raw(cls, raw: dict[str, any]) -> Self:
+    def from_dict(cls, data: DataType) -> Self:
+        return cls(**data)
+
+    def to_dict(self) -> DataType:
         """
-        Create a document instance from raw scraped or API data.
-
-        This method should normalize and structure the input data to match
-        the format expected by the `Document` and its subclasses.
-
-        Args:
-            raw (dict): Unstructured raw data.
+        Convert the document to a dictionary format suitable for serialization.
 
         Returns:
-            Self: A new instance of the subclass.
+            DataType: A dictionary representation of the document.
         """
-        pass
+        return asdict(self)
 
     def __repr__(self) -> str:
         """
@@ -58,4 +53,16 @@ class Document(ABC, EmbeddableMixin, HashableMixin, SerializableMixin):
         Returns:
             str: A concise representation including the document's class and ID.
         """
-        return f"<{self.__class__.__name__}(id={self.id})>"
+        return f"<{self.__class__.__name__}(hash={self.hash})>"
+
+    @property
+    @abstractmethod
+    def hash_data(self) -> DataType:
+        """
+        Generate the data used for computing the document's hash. Subclass 
+        implementations should call this method.
+
+        Returns:
+            DataType: The data dictionary used for hashing.
+        """
+        return {"type": self.type}
