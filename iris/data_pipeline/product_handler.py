@@ -55,9 +55,8 @@ class ProductHandler:
             soup (BeautifulSoup): Parsed HTML of the product page.
 
         Returns:
-            tuple[Product, list[Image]] | None: Product object and list of Image objects
-                                                if extraction is successful; None 
-                                                otherwise.
+            tuple[Product, list[Image]] | None: Product object if extraction is
+                                                successful; None otherwise.
         """
         # Extract product data
         product_data = self.scraper.extract_data(
@@ -79,11 +78,11 @@ class ProductHandler:
             )
 
         # Make product instance
-        product = Product.from_raw(
+        product = Product(
             title=product_data["title"],
             description=product_data["description"],
             url=url,
-            image_ids=[image.id for image in images],
+            image_hashes=[image.hash for image in images],
             debug_info=product_data.get("debug_info", dict())
         )
 
