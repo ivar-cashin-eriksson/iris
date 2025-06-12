@@ -35,7 +35,7 @@ class LocalizationModel(ABC):
         Returns:
             List of dictionaries containing mask information.
         """
-        pass
+        ...
 
     def post_process_masks(
         self, 
@@ -69,7 +69,7 @@ class LocalizationModel(ABC):
         Returns:
             str: Unique hash for the object localization
         """
-        pass
+        ...
 
     def _to_relative_coordinates(
         self, 

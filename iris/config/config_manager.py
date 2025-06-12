@@ -83,7 +83,7 @@ class ConfigManager(ABC):
         This method should load all TOML files and create corresponding
         configuration objects for the specific implementation.
         """
-        pass
+        ...
 
     @final
     def _load_toml(self, file_path: Path) -> dict:
