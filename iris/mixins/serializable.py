@@ -1,6 +1,9 @@
 import torch
 from pathlib import Path
 from datetime import datetime, timezone
+from typing import TypeAlias, Any
+
+DataType: TypeAlias = dict[str, any]
 
 class SerializableMixin:
     """
@@ -15,26 +18,21 @@ class SerializableMixin:
         - `self.embedding`: (optional) torch.Tensor or list
     """
 
-    def to_dict(self) -> dict[str, any]:
+    def to_dict(self) -> DataType:
         """
         Return a serializable representation of this document for general use.
-
-        Converts tensors to lists and skips internal-only fields.
-        By default, uses `self.data` as the base structure.
 
         Returns:
             dict: A serializable version of the document.
         """
-        if not hasattr(self, "data"):
-            raise AttributeError("Class using SerializableMixin must define `self.data`")
-        
-        return self.data.copy()
+        ...
 
     def to_mongo(self) -> dict[str, any]:
         """
         Return a dictionary suitable for inserting into MongoDB.
 
-        Includes `_id` and formats fields for MongoDB compatibility.
+        Includes `_id` and formats fields for MongoDB compatibility. Assumes
+        that `self.id` is defined in the subclass.
 
         Returns:
             dict: MongoDB-ready document.
@@ -43,15 +41,12 @@ class SerializableMixin:
 
         # Convert to BSON-compatible types
         for key, value in doc.items():
-            if isinstance(value, torch.Tensor):
-                doc[key] = value.tolist()
-            elif isinstance(value, Path):
+            if isinstance(value, Path):
                 doc[key] = str(value)
         
-        # Add `_id` field for MongoDB
-        if not hasattr(self, "id"):
-            raise AttributeError("Class using SerializableMixin must define `self.id`")
-        doc["_id"] = self.id
+        # Remove `_id` field if it is None
+        if doc.get("_id") is None:
+            doc.pop("_id", None)
 
         # Add timestamp field
         doc["created_at"] = datetime.now(timezone.utc)
