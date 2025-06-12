@@ -115,7 +115,7 @@ class ImageHandler(ABC):
         images = []
 
         for url, dom_location in zip(urls, dom_locations):
-            image = Image.from_raw(url, debug_info={"dom_location": dom_location})
+            image = Image(url=url, debug_info={"dom_location": dom_location})
             images.append(image)
 
         return images

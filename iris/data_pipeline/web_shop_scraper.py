@@ -119,20 +119,17 @@ class WebShopScraper:
 
         return matched_links
 
-    def scrape(self) -> Iterator[tuple[Product, list[Image]]]:
+    def scrape(self) -> Iterator[Product, list[Image]]:
         """
         Crawl and process an entire web shop, yielding structured product data.
 
         This method handles recursive link discovery, pagination, and product extraction 
         with URL deduplication and rate limiting.
 
-        For each valid product page encountered, it yields a tuple containing:
-            - A Product instance
-            - A list of associated Image instances
+        For each valid product page encountered, it yields a Product instance.
 
         Returns:
-            Iterator[tuple[Product, list[Image]]]: Streamed product and image pairs
-                                                   as they are discovered and parsed.
+            Iterator[Product]: Streamed products as they are discovered and parsed.
         """
 
         urls_to_process = {self.shop_config.base_url}
@@ -164,12 +161,10 @@ class WebShopScraper:
 
             # Process product URLs
             if self._is_product_url(url):
-                extracted = self.product_handler.process_product_page(url, soup)
+                product, images = self.product_handler.process_product_page(url, soup)
 
-                if extracted is not None:
-                    extracted_product = extracted[0]
-                    extracted_images = extracted[1]
-                    yield extracted_product, extracted_images
+                if product is not None:
+                    yield product, images
 
             # Mark this URL as processed
             self.processed_urls.add(url)
