@@ -1,97 +1,94 @@
-from typing import Self
-import torch
+from dataclasses import dataclass
 
 from iris.models.document import Document, DataType
-from iris.models.image import Image
+from iris.mixins.embeddable import EmbeddingPayload
 from iris.mixins.renderable import RenderableMixin
-from iris.embedding_pipeline.embedder import Embedder
+from iris.protocols.context_protocols import HasImageContext
 
+
+@dataclass(repr=False, kw_only=True)
 class Localization(Document, RenderableMixin):
     """
     Represents a cropped bounding box from an image that may point to a product.
     """
 
-    def __init__(self, data: DataType, parent_image: Image):
-        """
-        Initialize a Localization document with a reference to its parent image.
+    type: str = "localization"
+    parent_image_hash: str
+    label: str
+    score: float
+    bbox: list[float]
+    model: str
 
-        Args:
-            data (dict): The raw MongoDB document data, including `_id`.
-            parent_image (Image): The parent Image instance this localization belongs to.
-        """
-        super().__init__(data)
-        self.parent_image = parent_image
-
-    @classmethod
-    def from_raw(
-        cls, 
-        label: str,
-        score: float,
-        bbox: list[float],
-        model: str,
-        parent_image: Image,
-        debug_info: dict | None = None
-    ) -> Self:
-        """
-        Convert raw localization data into a structured Localization document.
-
-        Args:
-            label (str): The label of the localization.
-            score (float): Confidence score for the localization.
-            bbox (list[float]): Bounding box coordinates in [x1, y1, x2, y2] format.
-            model (str): The model used to generate this localization.
-            debug_info (dict | None): Optional debug information for this localization.
-            parent_image (Image): The parent Image instance this localization belongs to.
-
-        Returns:
-            Localization: A structured instance.
-        """
-        data = {
-            "label": label,
-            "score": score,
-            "bbox": bbox,
-            "model": model,
-            "debug_info": debug_info or dict()
-        }
-
-        hash = cls.compute_hash_from_data(cls.hash_data_from_data(data, parent_image))
-
-        # Create complete data structure
-        data["_id"] = hash
-        data["type"] = "localization"
-
-        return cls(data, parent_image)
-
-    @classmethod
-    def hash_data_from_data(cls, data: DataType, parent_image: Image) -> DataType:
+    @property
+    def hash_data(self) -> DataType:
         """
         Fields used to compute the content-based hash for the localization.
 
         Returns:
-            dict: Identifiers for the image and bounding box.
+            DataType: Identifiers for the image and bounding box.
         """
-        return {
-            "parent_image_id": parent_image.id,
-            "label": data["label"],
-            "score": data["score"],
-            "bbox": data["bbox"],
-            "model": data["model"]
-        }
+        data = super().hash_data
+        data["type"] = self.type
+        data["parent_image_id"] = self.parent_image_hash
+        data["label"] = self.label
+        data["score"] = self.score
+        data["bbox"] = self.bbox
+        data["model"] = self.model
 
-    def embed(self, embedder: Embedder) -> torch.Tensor:
+        return data
+    
+    @property
+    def id(self) -> str:
         """
-        Generate an embedding for this localization by applying 5 augmentations
-        and averaging the resulting embeddings.
-
-        Args:
-            embedder: An embedding model capable of cropping and embedding.
+        Get the unique identifier for the parent image.
 
         Returns:
-            torch.Tensor: The averaged embedding.
+            str: The hash of the parent image.
         """
-        # Perhaps augmentation should be done here instead of in the embedder?
-        crops = [
-            embedder.crop_and_embed(self.data["image_path"], self.data["bbox"])
-            for _ in range(5)
-        ]
-        return torch.stack(crops).mean(dim=0)
+        return self.parent_image_hash
+    
+    @property
+    def storage_path(self) -> str | None:
+        """
+        Does not return a storage path for the localization as image access is
+        handled through the parent image.
+        """
+        # No-op for now, as localizations do not have a storage path
+        return None
+    
+    @storage_path.setter
+    def storage_path(self, value: str | None) -> None:
+        """
+        Does not set a storage path for the localization as image access is 
+        handled through the parent image.
+        """
+        # No-op for now, as localizations do not have a storage path
+        pass
+
+    @property
+    def url(self) -> str | None:
+        """
+        Does not return a URL for the localization as image access is handled
+        through the parent image.
+        """
+        return None
+    
+    @url.setter
+    def url(self, value: str | None) -> None:
+        """
+        Does not set a URL for the localization as image access is handled 
+        through the parent image.
+        """
+        pass
+    
+    def get_embedding_data(self, context: HasImageContext) -> EmbeddingPayload:
+
+        pil_image = context.get_pil_image(self.parent_image_hash)
+        augmentations = ...  # Generate augmentations from the image using the bounding box
+
+        embedding_payload =  EmbeddingPayload.from_items(
+            augmentations,
+            [f"augmentation_{i}" for i in range(len(augmentations))]  # Tags for each augmentation
+        )
+
+        return embedding_payload
