@@ -1,6 +1,5 @@
 import os
 import io
-import re
 import requests
 from PIL import Image as PILImage
 from abc import ABC, abstractmethod
@@ -28,21 +27,24 @@ class ImageStoreManager:
                 raise ValueError(f"Unsupported storage backend: {self.config.storage_backend}")
 
 
-    def resolve(
-        self, 
-        storage_location: Path | None = None, 
+    def get_pil_image(
+        self,
+        image_id: str | None = None,
+        path: Path | None = None, 
         url: str | None = None,
-        image_id: str | None = None
     ) -> tuple[PILImage.Image, Path]:
         """
-        Resolve image from storage path or url.
+        Resolve image from id, storage path, or url.
 
         Loads the image from the specified storage location if available,
         otherwise downloads it from the provided URL and stores the image.
 
         Args:
-            storge_location (str): Storage location of image, can be a local path or a blob key.
-            url (str): URL to download the image if storage_location is not provided.
+            image_id (str | None): Optional image ID to use for storage.
+            path (Path | None): File path of image, can be a local path, blob 
+                                key or similar.
+            url (str | None): URL to download the image if id, and path is not 
+                              provided.
 
         Returns:
             tuple[PIL.Image, Path]: The loaded image and storage location.
@@ -50,17 +52,33 @@ class ImageStoreManager:
         Raises:
             FileNotFoundError: If the image cannot be resolved from any source.
         """
-        if storage_location is not None:
-            logger.debug(f"Attempting to resolve image from storage_location: {storage_location}")
-            return self.storage_backend.load(storage_location), storage_location
-        elif (url is not None) and (image_id is not None):
+        if all(x is None for x in (image_id, path, url)):
+            logger.error("No image ID, file path, or URL provided for image resolution.")
+            raise ValueError("At least one of image_id, storage_location, or url must be provided.")
+        
+        if image_id is not None:
+            try:
+                logger.debug(f"Attempting to resolve image from id: {image_id}")
+                image = self.storage_backend.load_from_id(image_id)
+                path = self.storage_backend.path_from_id(image_id)
+                return image, path
+            except FileNotFoundError:
+                logger.warning(f"Image with ID {image_id} not found in storage.")
+        if path is not None:
+            try:
+                logger.debug(f"Attempting to resolve image from storage_location: {path}")
+                image = self.storage_backend.load_from_path(path)
+                return image, path
+            except FileNotFoundError:
+                logger.warning(f"Image not found at storage location: {path}")
+        if (url is not None) and (image_id is not None):
             logger.debug(f"Falling back to downloading image from URL: {url}")
             image = self._download(url)
-            path = self.storage_backend.save(image, image_id)
+            path = self.storage_backend.save_to_id(image, image_id)
             return image, path
-        else:
-            logger.error("No storage location or URL and image ID provided for image resolution.")
-            raise FileNotFoundError("No storage location or URL and image ID provided for image resolution.")
+        
+        logger.error("No storage location or URL and image ID provided for image resolution.")
+        raise FileNotFoundError("No storage location or URL and image ID provided for image resolution.")
 
 
     def _download(self, url: str) -> PILImage.Image:
@@ -76,29 +94,43 @@ class ImageStoreManager:
             raise FileNotFoundError(f"Could not download image from URL: {url}")
 
 
+
 class StorageBackendHandler(ABC):
     @abstractmethod
-    def save(self, image: PILImage.Image, image_id: str) -> Path:
-        pass
+    def save_to_path(self, image: PILImage.Image, path: Path) -> Path:
+        ...
 
     @abstractmethod
-    def load(self, image_id: str) -> PILImage.Image:
-        pass
+    def load_from_path(self, path: Path) -> PILImage.Image:
+        ...
+    
+    @abstractmethod
+    def path_from_id(self, image_id: str) -> Path:
+        ...
+
+    def save_to_id(self, image: PILImage.Image, image_id: str) -> Path:
+        path = self.path_from_id(image_id)
+        return self.save_to_path(image, path)
+
+    def load_from_id(self, image_id: str) -> PILImage.Image:
+        path = self.path_from_id(image_id)
+        return self.load_from_path(path)
 
 
 class LocalStorageHandler(StorageBackendHandler):
     def __init__(self, directory: Path):
         self.directory = directory
 
-    def save(self, image: PILImage.Image, image_id: str) -> Path:
-        path = self.directory / f"{image_id}.jpg"
+    def path_from_id(self, image_id: str) -> Path:
+        return self.directory / f"{image_id}.jpg"
+    
+    def save_to_path(self, image: PILImage.Image, path: Path) -> Path:
         os.makedirs(path.parent, exist_ok=True)
         image.save(path)
         logger.debug(f"Image saved at path: {path}")
         return path
 
-    def load(self, image_id: str) -> PILImage.Image:
-        path = self.directory / f"{image_id}.jpg"
+    def load_from_path(self, path: Path) -> PILImage.Image:
         if not path.exists():
             logger.error(f"Image file not found at path: {path}")
             raise FileNotFoundError(path)
