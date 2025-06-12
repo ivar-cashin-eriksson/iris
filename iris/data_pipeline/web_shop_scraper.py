@@ -129,7 +129,7 @@ class WebShopScraper:
         For each valid product page encountered, it yields a Product instance.
 
         Returns:
-            Iterator[Product]: Streamed products as they are discovered and parsed.
+            Iterator[Product, list[Image]]: Streamed products as they are discovered and parsed.
         """
 
         urls_to_process = {self.shop_config.base_url}
