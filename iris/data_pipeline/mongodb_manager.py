@@ -102,7 +102,7 @@ class MongoDBManager:
 
         if isinstance(docs, Document):
             result = collection.update_one(
-                {"_id": docs.id},
+                {"_id": docs.hash},
                 {"$set": docs.to_mongo()},
                 upsert=True
             )
@@ -112,7 +112,7 @@ class MongoDBManager:
         count = 0
         for doc in docs:
             result = collection.update_one(
-                {"_id": doc.id},
+                {"_id": doc.hash},
                 {"$set": doc.to_mongo()},
                 upsert=True
             )
@@ -160,3 +160,4 @@ class MongoDBManager:
         collection = self.get_collection(collection_name)
         cursor = collection.find(query) if query else collection.find()
         return [document_factory(doc) for doc in cursor]
+    
