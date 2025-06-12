@@ -9,24 +9,18 @@ class HashableMixin:
     Mixin for computing a stable, content-based hash from document fields.
 
     This mixin provides a default method for generating an MD5 hash from a
-    subset of the document's data. It assumes the implementing class has a
-    `data` attribute containing its raw field values.
+    subset of the document's data.
     """
     
-    @classmethod
-    def hash_data_from_data(cls, data: DataType) -> DataType:
+    @property
+    def hash_data(self) -> DataType:
         """
         Returns the dictionary of fields used to compute the hash.
-
-        By default, this excludes volatile or identity-irrelevant fields like
-        '_id', 'hash', and 'created_at'. Subclasses can override this property
-        to define a custom identity scope.
 
         Returns:
             dict: Canonical content used for hash computation.
         """
-        exclude = {"_id", "hash", "created_at"}
-        return {k: v for k, v in data.items() if k not in exclude}
+        ...
 
     @classmethod
     def compute_hash_from_data(cls, hash_data: DataType) -> str:
@@ -44,22 +38,6 @@ class HashableMixin:
 
         logger.debug(f"Computed hash {hash_} from fields: {list(hash_data.keys())}")
         return hash_
-
-    @property
-    def hash_data(self) -> DataType:
-        """
-        Returns the dictionary of fields used to compute the hash.
-
-        By default, this excludes volatile or identity-irrelevant fields like
-        '_id', 'hash', and 'created_at'. Subclasses can override this property
-        to define a custom identity scope.
-
-        Returns:
-            dict: Canonical content used for hash computation.
-        """
-        if not hasattr(self, "data"):
-            raise AttributeError("Class using HashableMixin must define a `data` attribute.")
-        return self.hash_data_from_data(self.data)
     
     def compute_hash(self) -> str:
         """
