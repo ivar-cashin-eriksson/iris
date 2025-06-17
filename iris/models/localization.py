@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from PIL import Image as PILImage
 
 from iris.models.document import Document, DataType
 from iris.mixins.embeddable import EmbeddingPayload
@@ -15,6 +16,7 @@ class Localization(Document, RenderableMixin):
     type: str = "localization"
     parent_image_hash: str
     label: str
+    label_id: str
     score: float
     bbox: list[float]
     model: str
@@ -31,55 +33,37 @@ class Localization(Document, RenderableMixin):
         data["type"] = self.type
         data["parent_image_id"] = self.parent_image_hash
         data["label"] = self.label
+        data["label_id"] = self.label_id
         data["score"] = self.score
         data["bbox"] = self.bbox
         data["model"] = self.model
 
         return data
     
-    @property
-    def id(self) -> str:
+    def render(self, context: HasImageContext, **kwargs) -> PILImage.Image:
         """
-        Get the unique identifier for the parent image.
+        Render the localization using the provided context.
+
+        Args:
+            context: The context containing necessary configurations and methods.
 
         Returns:
-            str: The hash of the parent image.
+            PILImage.Image: The rendered image.
         """
-        return self.parent_image_hash
-    
-    @property
-    def storage_path(self) -> str | None:
-        """
-        Does not return a storage path for the localization as image access is
-        handled through the parent image.
-        """
-        # No-op for now, as localizations do not have a storage path
-        return None
-    
-    @storage_path.setter
-    def storage_path(self, value: str | None) -> None:
-        """
-        Does not set a storage path for the localization as image access is 
-        handled through the parent image.
-        """
-        # No-op for now, as localizations do not have a storage path
-        pass
+        pil_image, _ = context.get_pil_image(self.parent_image_hash)
 
-    @property
-    def url(self) -> str | None:
-        """
-        Does not return a URL for the localization as image access is handled
-        through the parent image.
-        """
-        return None
-    
-    @url.setter
-    def url(self, value: str | None) -> None:
-        """
-        Does not set a URL for the localization as image access is handled 
-        through the parent image.
-        """
-        pass
+        # Convert relative bbox coordinates to absolute pixel values
+        im_width, im_height = pil_image.size
+        x_min, y_min, width, height = self.bbox
+        abs_bbox = (
+            int(x_min * im_width),
+            int(y_min * im_height),
+            int((width + x_min) * im_width),
+            int((height + y_min) * im_height),
+        )
+        crop = pil_image.crop(abs_bbox)
+
+        return crop
     
     def get_embedding_data(self, context: HasImageContext) -> EmbeddingPayload:
 
