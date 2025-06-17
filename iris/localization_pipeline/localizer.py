@@ -1,10 +1,6 @@
-"""
-Handler for image segmentation using SAM2 model.
-"""
-
 import torch
 import numpy as np
-from PIL import Image
+from PIL import Image as PILImage
 from typing import Any
 from ultralytics import YOLO
 from transformers import AutoProcessor, YolosForObjectDetection, YolosImageProcessor
@@ -13,6 +9,9 @@ from abc import ABC, abstractmethod
 import hashlib
 
 from iris.config.localization_pipeline_config_manager import LocalizationModelConfig, SAM2Config, YoloConfig, YolosConfig
+from iris.mixins.renderable import RenderableMixin
+from iris.models.localization import Localization
+from iris.protocols.context_protocols import HasImageContext
 from iris.utils.machine_utils import get_device
 from iris.utils.image_utils import convert_mask_format, convert_image_format
 from iris.data_pipeline.mongodb_manager import MongoDBManager
@@ -24,7 +23,7 @@ class LocalizationModel(ABC):
     @abstractmethod
     def localize_objects(
         self, 
-        image: np.ndarray  # Only accept numpy array
+        image: np.ndarray
     ) -> list[dict[str, Any]]:
         """
         Perform object localization on an image.
@@ -33,7 +32,8 @@ class LocalizationModel(ABC):
             image: Input image as numpy array in RGB format.
                         
         Returns:
-            List of dictionaries containing mask information.
+            list[dict[str, Any]]: List of dictionaries containing localization 
+                                  information in relative coordinates.
         """
         ...
 
@@ -52,24 +52,6 @@ class LocalizationModel(ABC):
         """
         # Placeholder for post-processing logic
         return masks
-    
-    @abstractmethod
-    def generate_localization_hash(
-        self, 
-        image_hash: str, 
-        localization_data: dict[str, Any]
-    ) -> str:
-        """
-        Generate a unique hash for an object localization based on image hash and mask properties.
-        
-        Args:
-            image_hash (str): Hash of the parent image
-            localization_data (dict): Dictionary containing object localization information
-            
-        Returns:
-            str: Unique hash for the object localization
-        """
-        ...
 
     def _to_relative_coordinates(
         self, 
@@ -100,35 +82,11 @@ class LocalizationModel(ABC):
 
         return result
 
+
 class BoundingBoxModel(LocalizationModel):
     """Base class for models that only produce bounding boxes."""
-
-    def generate_localization_hash(
-        self, 
-        image_hash: str, 
-        localization_data: dict[str, Any]
-    ) -> str:
-        """
-        Generate a unique hash for an object localization based on parent image
-        hash and bounding box properties.
-        
-        Args:
-            image_hash (str): Hash of the parent image
-            localization_data (dict): Dictionary containing object localization
-                                      information
-            
-        Returns:
-            str: Unique hash for the object localization
-        """
-        # Create a string combining relevant mask properties
-        mask_string = (
-            f"{image_hash}"
-            f"{str(localization_data['bbox'])}"
-        )
-        
-        # Generate MD5 hash
-        return hashlib.md5(mask_string.encode()).hexdigest()
     
+
 class YoloModel(BoundingBoxModel):
     """YOlO model for object localization."""
 
@@ -144,15 +102,19 @@ class YoloModel(BoundingBoxModel):
         # Initialize model and processor from local checkpoint
         self.model = YOLO("../checkpoints/detect/train/weights/best.pt")
 
-    def localize_objects(self, image: np.ndarray) -> list[dict[str, Any]]:
+    def localize_objects(
+        self, 
+        image: np.ndarray
+    ) -> list[dict[str, Any]]:
         """
-        Segment an image using the YOLO model.
+        Perform object localization on an image.
         
         Args:
             image: Input image as numpy array in RGB format.
                         
         Returns:
-            List of dictionaries containing mask information.
+            list[dict[str, Any]]: List of dictionaries containing localization 
+                                  information in relative coordinates.
         """
 
         # Run prediction (YOLO expects BGR format)
@@ -199,18 +161,22 @@ class YolosModel(BoundingBoxModel):
         )
         self.model.to(get_device(self.model_config.device))
 
-    def localize_objects(self, image: np.ndarray) -> list[dict[str, Any]]:
+    def localize_objects(
+        self, 
+        image: np.ndarray
+    ) -> list[dict[str, Any]]:
         """
-        Segment an image using the YOLOS model.
+        Perform object localization on an image.
         
         Args:
             image: Input image as numpy array in RGB format.
                         
         Returns:
-            List of dictionaries containing mask information.
+            list[dict[str, Any]]: List of dictionaries containing localization 
+                                  information in relative coordinates.
         """
         # Convert numpy array to PIL Image for YOLOS processor
-        pil_image = Image.fromarray(image)
+        pil_image = PILImage.fromarray(image)
     
         # Preprocess and run inference
         inputs = self.processor(images=pil_image, return_tensors="pt")
@@ -270,43 +236,19 @@ class SAM2Model(LocalizationModel):
             **self.model_config.model_params
         )
 
-    def generate_localization_hash(
-        self, 
-        image_hash: str, 
-        localization_data: dict[str, Any]
-    ) -> str:
-        """
-        Generate a unique hash for a mask based on image hash and mask properties.
-        
-        Args:
-            image_hash: Hash of the parent image
-            mask_data: Dictionary containing mask information
-            
-        Returns:
-            str: Unique hash for the mask
-        """
-        # Create a string combining relevant mask properties
-        mask_string = (
-            f"{image_hash}"
-            f"{str(localization_data['segmentation'])}"
-            f"{str(localization_data['bbox'])}"
-        )
-        
-        # Generate MD5 hash
-        return hashlib.md5(mask_string.encode()).hexdigest()
-
     def localize_objects(
-            self, 
-            image: np.ndarray
-        ) -> list[dict[str, Any]]:
+        self, 
+        image: np.ndarray
+    ) -> list[dict[str, Any]]:
         """
-        Segment an image using the SAM2 model.
+        Perform object localization on an image.
         
         Args:
-            image (np.ndarray): Input image.
+            image: Input image as numpy array in RGB format.
                         
         Returns:
-            List of dictionaries containing mask information.
+            list[dict[str, Any]]: List of dictionaries containing localization 
+                                  information in relative coordinates.
         """
         masks = self.mask_generator.generate(image)
 
@@ -362,7 +304,7 @@ class SAM2Model(LocalizationModel):
         return result
 
 
-class LocalizationHandler:
+class Localizer:
     """Handles image segmentation using SAM2 model."""
     
     def __init__(self, model_config: LocalizationModelConfig):
@@ -419,83 +361,45 @@ class LocalizationHandler:
         new_width = int(width * scale)
         
         # Use PIL for high-quality downsampling
-        pil_img = Image.fromarray(image)
-        resized_img = pil_img.resize((new_width, new_height), Image.Resampling.LANCZOS)
+        pil_img = PILImage.fromarray(image)
+        resized_img = pil_img.resize((new_width, new_height), PILImage.Resampling.LANCZOS)
         return np.array(resized_img), original_size
     
-    def localize_image(
+    def localize(
         self, 
-        image: np.ndarray | Image.Image,
+        image: RenderableMixin,
+        context: HasImageContext,
         post_process: bool = True,
     ) -> list[dict[str, Any]]:
         """
         Object localize an image and generate bounding boxes.
         
         Args:
-            image: Input image as numpy array or PIL Image.
-                   Will be converted to numpy array and RGB format.
+            image (RenderableMixin): Input image as RenderableMixin. Will be 
+                                     converted to numpy array in RGB format.
+            context (HasImageContext): Context providing PILImage.
             
         Returns:
             List of dictionaries containing localization information, where 
             each dictionary has at least:
-            - bbox: Bounding box in [x, y, width, height] format
+            - label: Name of the detected object
+            - label_id: ID of the detected object
+            - score: Confidence score of the detection
+            - bbox: Bounding box in relative [x, y, width, height] format
         """
         # Always convert to numpy array first thing
-        image = convert_image_format(image, target_format="numpy", ensure_rgb=True)
+        np_image = convert_image_format(
+            image.render(context), 
+            target_format="numpy", 
+            ensure_rgb=True
+        )
         
         # Downsample image for segmentation
-        downsampled_image, _ = self._downsample_image(image)
+        downsampled_image, _ = self._downsample_image(np_image)
 
-        masks = self.model.localize_objects(downsampled_image)
+        localizations = self.model.localize_objects(downsampled_image)
 
         if post_process:
-            masks = self.model.post_process_masks(masks)
+            localizations = self.model.post_process_masks(localizations)
 
-        return masks            
-
-    def save_segmentation_metadata(
-        self,
-        image_hash: str,
-        localizations: list[dict[str, Any]],
-        mongodb_manager: MongoDBManager,
-    ) -> bool:
-        """
-        Save segmentation metadata to MongoDB.
-        
-        Args:
-            image_hash: Hash of the image in MongoDB.
-            masks: List of masks to save.
-            mongodb_manager: MongoDBManager instance to access the database.
-            
-        Returns:
-            bool: True if the document was updated, False otherwise.
-        """
-        # Convert masks to MongoDB-compatible format
-        updated_localizations = []
-        for localization in localizations:
-            # Add unique hash to mask
-            localization['hash'] = self.model.generate_localization_hash(
-                image_hash, localization
-            )
-
-            # Add model type info to localization
-            match self.model:
-                case BoundingBoxModel():
-                    model_type = "bbox"
-                case SAM2Model():
-                    model_type = "sam2"
-                case _:
-                    raise ValueError(f"Unsupported model type: {type(self.model)}")
-
-            localization['model_type'] = model_type
-
-            updated_localizations.append(localization)
-        
-
-        # Use the MongoDBManager's update_one method to overwrite existing localizations
-        return mongodb_manager.update_one(
-            collection_name=mongodb_manager.config.image_metadata_collection,
-            filter_query={"image_hash": image_hash},
-            update_data={"localizations": updated_localizations},
-            upsert=False
-        )
+        return localizations
