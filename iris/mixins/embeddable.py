@@ -1,96 +1,72 @@
-from abc import abstractmethod
-import torch
+from dataclasses import dataclass
+from typing import Literal, Self
+from PIL import Image as PILImage
 
-from iris.data_pipeline.qdrant_manager import QdrantManager
-from iris.embedding_pipeline.embedder import Embedder
-from iris.utils.log import logger
+from abc import abstractmethod
+
+from iris.protocols.context_protocols import HasFullContext
+
+
+@dataclass
+class EmbeddingComponent:
+    type: Literal["text", "image"]
+    content: str | PILImage.Image
+    tag: str | None = None # e.g. "title", "desc", "gallery_1"
+
+
+@dataclass
+class EmbeddingPayload:
+    components: list[EmbeddingComponent]
+
+    @classmethod
+    def from_items(
+        cls, 
+        items: list[str | PILImage.Image], 
+        tags: list[str] | None = None
+    ) -> Self:
+        if tags is not None and len(tags) != len(items):
+            raise ValueError("Length of `tags` must match length of `items`.")
+
+        components = []
+        for i, item in enumerate(items):
+            tag = tags[i] if tags else None
+
+            match item:
+                case str():
+                    components.append(EmbeddingComponent(
+                        type="text",
+                        content=item,
+                        tag=tag or f"text_{i}"
+                    ))
+                case PILImage.Image():
+                    components.append(EmbeddingComponent(
+                        type="image",
+                        content=item,
+                        tag=tag or f"image_{i}"
+                    ))
+                case _:
+                    raise TypeError(f"Unsupported item type: {type(item)}")
+
+        return cls(components=components)
+
 
 class EmbeddableMixin:
     """
     Abstract interface for embeddable documents.
 
-    This mixin defines the standard interface for computing, caching,
-    retrieving, and saving embeddings. It assumes implementing classes
-    define a `self.embedding` attribute.
+    This mixin defines the standard interface for an embeddable object. 
+    To be used together with an embedder.
     """
 
     @abstractmethod
-    def embed(self, embedder: Embedder) -> torch.Tensor:
+    def get_embedding_data(self, context: HasFullContext) -> EmbeddingPayload:
         """
-        Generate a new embedding for this document using the provided embedder.
+        Get the data required to compute an embedding for this document.
 
         Args:
-            embedder (Embedder): An instance capable of embedding this document.
+            context (Embedder): An instance capable of embedding this document.
 
         Returns:
             torch.Tensor: The computed embedding vector.
         """
-        pass
-
-    def get_embedding(self, qdrant_manager: QdrantManager | None, embedder: Embedder | None) -> torch.Tensor:
-        """
-        Retrieve or compute an embedding for this document.
-
-        The method first checks for a cached embedding in memory, then tries to fetch
-        from Qdrant. If no embedding is found, it falls back to computing it using the
-        provided embedder.
-
-        Args:
-            qdrant_manager (QdrantManager | None): Optional manager to fetch from Qdrant.
-            embedder (Embedder | None): Optional embedder to compute the embedding if needed.
-
-        Returns:
-            torch.Tensor: The final embedding.
-
-        Raises:
-            RuntimeError: If the embedding could not be retrieved or computed.
-        """
-        if self.embedding is not None:
-            logger.debug(f"Embedding already cached for document {self!r}")
-            return self.embedding
-
-        try:
-            result = qdrant_manager.retrieve(self)
-            if result:
-                self.set_embedding(result)
-                logger.info(f"Fetched embedding from Qdrant for document {self!r}")
-                return self.embedding
-        except Exception as e:
-            logger.warning(f"Failed to retrieve embedding from Qdrant for {self!r}: {e}")
-
-        try:
-            result = self.embed(embedder)
-            if result is not None:
-                self.set_embedding(result)
-                logger.info(f"Computed new embedding for document {self!r}")
-                return self.embedding
-        except Exception as e:
-            logger.warning(f"Embedding computation failed for {self!r}: {e}")
-
-        logger.error(f"No embedding available for document {self!r}")
-        raise RuntimeError(f"Embedding could not be retrieved or computed for document {self!r}")
-
-    def set_embedding(self, embedding: torch.Tensor) -> None:
-        """
-        Set the embedding on this document.
-
-        Args:
-            embedding (torch.Tensor): The computed embedding vector.
-        """
-        self.embedding = embedding
-
-    def save_embedding(self, qdrant_manager: QdrantManager, collection_name: str):
-        """
-        Save the embedding to Qdrant.
-
-        Args:
-            qdrant_manager (QdrantManager): The manager responsible for Qdrant operations.
-            collection_name (str): The name of the Qdrant collection to save to.
-
-        Raises:
-            NotImplementedError: Placeholder — implementation is pending.
-        """
-        if self.embedding is None:
-            logger.warning(f"Cannot save embedding for document {self!r} because it is None")
-        else:
-            raise NotImplementedError("Embedding saving is not implemented yet.")
+        ...
