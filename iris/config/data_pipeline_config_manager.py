@@ -70,8 +70,9 @@ class MongoDBConfig(BaseConfig):
     database_name: str = None
     tls_allow_invalid_certificates: bool = True
     _database_template: str = "iris_{env}_{shop_name}"
-    image_metadata_collection: str = "image_metadata"
     product_collection: str = "products"
+    image_metadata_collection: str = "image_metadata"
+    localization_collection: str = "localizations"
     scraping_progress_collection: str = "scraping_progress"
     _shop_name: str
 
