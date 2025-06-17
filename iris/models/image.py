@@ -31,26 +31,7 @@ class Image(Document, RenderableMixin):
 
         return data
 
-    def get_embedding_data(self, context: HasImageContext) -> EmbeddingPayload:
-        """
-        Get the data required to compute an embedding for this image.
-
-        Args:
-            context: The context containing necessary configurations and methods.
-
-        Returns:
-            EmbeddingPayload: The payload containing components for embedding.
-        """
-        pil_image = context.get_pil_image(self.hash, self.storage_path, self.url)
-
-        embedding_payload = EmbeddingPayload.from_items(
-            [pil_image],
-            ["image"]
-        )
-
-        return embedding_payload
-    
-    def render(self, context: HasImageContext) -> PILImage.Image:
+    def render(self, context: HasImageContext, **kwargs) -> PILImage.Image:
         """
         Render the image using the provided context.
 
@@ -63,3 +44,23 @@ class Image(Document, RenderableMixin):
         pil_image, path = context.get_pil_image(self.hash, self.storage_path, self.url)
         self.storage_path = path
         return pil_image
+    
+    def get_embedding_data(self, context: HasImageContext) -> EmbeddingPayload:
+        """
+        Get the data required to compute an embedding for this image.
+
+        Args:
+            context: The context containing necessary configurations and methods.
+
+        Returns:
+            EmbeddingPayload: The payload containing components for embedding.
+        """
+        pil_image = self.render(context)
+
+        embedding_payload = EmbeddingPayload.from_items(
+            [pil_image],
+            ["image"]
+        )
+
+        return embedding_payload
+    

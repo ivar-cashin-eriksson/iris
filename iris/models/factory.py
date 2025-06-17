@@ -18,12 +18,10 @@ def factory(data: DataType) -> Document:
     """
     match data.get("type"):
         case "product":
-            return Product(data)
+            return Product(**data)
         case "image":
-            return Image(data)
+            return Image(**data)
         case "localization":
-            raise NotImplementedError(
-                "Localization documents are not yet implemented in the factory."
-            )
+            return Localization(**data)
         case _:
             raise ValueError(f"Unknown document type: {data.get('type')}")
