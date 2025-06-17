@@ -161,3 +161,40 @@ class MongoDBManager:
         cursor = collection.find(query) if query else collection.find()
         return [document_factory(doc) for doc in cursor]
     
+    def delete_one(
+        self, 
+        collection_name: str, 
+        query: QueryType
+    ) -> int:
+        """
+        Delete a single document from a collection.
+
+        Args:
+            collection_name (str): Name of the collection
+            query (QueryType): Query to find the document to delete
+
+        Returns:
+            int: Number of documents deleted (0 or 1)
+        """
+        collection = self.get_collection(collection_name)
+        result = collection.delete_one(query)
+        return result.deleted_count
+    
+    def delete_many(
+        self, 
+        collection_name: str, 
+        query: QueryType
+    ) -> int:
+        """
+        Delete multiple documents from a collection.
+
+        Args:
+            collection_name (str): Name of the collection
+            query (QueryType): Query to find the documents to delete
+
+        Returns:
+            int: Number of documents deleted
+        """
+        collection = self.get_collection(collection_name)
+        result = collection.delete_many(query)
+        return result.deleted_count
