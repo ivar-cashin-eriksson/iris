@@ -40,7 +40,7 @@ class Product(Document):
 
         return data
 
-    def load_localization_ids(
+    def load_localization_hashes(
             self, 
             embedder: 
             Embedder, 
