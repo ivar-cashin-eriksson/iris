@@ -2,6 +2,7 @@
 _database_template = "iris_{env}_{shop_name}"  # Template for database names with environment identifier
 
 # Collections
-image_metadata_collection = "image_metadata"
 product_collection = "products"
+image_metadata_collection = "image_metadata"
+localization_collection = "localizations"
 scraping_progress_collection = "scraping_progress"
