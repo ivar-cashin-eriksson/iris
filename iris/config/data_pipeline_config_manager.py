@@ -37,7 +37,12 @@ class ShopConfig:
     image_selectors: dict[str, str]
     metadata_selectors: dict[str, str]
     scraper_config: ScraperConfig
+    start_url: str | None = None
 
+    def __post_init__(self) -> None:
+        if self.start_url is None:
+            # Default to the base URL if no start URL is provided
+            object.__setattr__(self, "start_url", self.base_url)
 
 @dataclass(frozen=True, kw_only=True)  # kw_only=True due to inheritance of BaseConfig
 class ImageStoreConfig(BaseConfig):
@@ -93,18 +98,19 @@ class QdrantConfig(BaseConfig):
 
     api_key: str = None
     url: str
+    embedding_dim: int = 512
     _collection_template: str = "iris_{env}_{shop_name}_{collection_name}"
-    image_collection: str = 'images'
-    text_collection: str = 'texts'
     product_collection: str = 'products'
+    image_collection: str = 'images'
+    localization_collection: str = 'localizations'
     _shop_name: str
 
 
     def __post_init__(self) -> None:
         collections = [
+            'product_collection',
             'image_collection', 
-            'text_collection', 
-            'product_collection'
+            'localization_collection'
         ]
         for collection_attr in collections:
             base_name = getattr(self, collection_attr)
