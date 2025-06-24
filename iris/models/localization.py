@@ -21,6 +21,9 @@ class Localization(Document, RenderableMixin):
     score: float
     bbox: list[float]
     model: str
+    point: list[float] | None = None
+    product_predictions: dict[str, float] | None = None
+
 
     @property
     def hash_data(self) -> DataType:
@@ -110,3 +113,14 @@ class Localization(Document, RenderableMixin):
         )
 
         return embedding_payload
+
+    def calculate_point(self) -> None:
+        """
+        Calculate the point to place the product link at for this localization.
+
+        Note: for now this is the center of the bounding box.
+        """
+        self.point = (
+            self.bbox[0] + self.bbox[2] / 2,
+            self.bbox[1] + self.bbox[3] / 2
+        )
