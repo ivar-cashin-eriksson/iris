@@ -79,8 +79,7 @@ class ProductHandler:
 
         # Make product instance
         product = Product(
-            title=product_data["title"],
-            description=product_data["description"],
+            metadata=product_data,
             url=url,
             image_hashes=[image.hash for image in images],
             debug_info=product_data.get("debug_info", dict())
