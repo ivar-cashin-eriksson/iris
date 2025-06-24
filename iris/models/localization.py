@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 from PIL import Image as PILImage
+import torchvision.transforms as T
 
 from iris.models.document import Document, DataType
 from iris.mixins.embeddable import EmbeddingPayload
@@ -66,13 +67,46 @@ class Localization(Document, RenderableMixin):
         return crop
     
     def get_embedding_data(self, context: HasImageContext) -> EmbeddingPayload:
+        pil_image, _ = context.get_pil_image(self.parent_image_hash)
+        img_width, img_height = pil_image.size
 
-        pil_image = context.get_pil_image(self.parent_image_hash)
-        augmentations = ...  # Generate augmentations from the image using the bounding box
+        # --- 1. Convert relative bbox (x, y, w, h) to absolute (x0, y0, x1, y1) ---
+        rel_x, rel_y, rel_w, rel_h = self.bbox
+        x0 = int(rel_x * img_width)
+        y0 = int(rel_y * img_height)
+        x1 = int((rel_x + rel_w) * img_width)
+        y1 = int((rel_y + rel_h) * img_height)
 
-        embedding_payload =  EmbeddingPayload.from_items(
+        base_crop = pil_image.crop((x0, y0, x1, y1))
+
+        # --- 2. Define augmentation pipeline ---
+        # TODO: Move to config
+        augmentation = T.Compose([
+            T.RandomAffine(
+                degrees=30,
+                translate=(0.1, 0.1),
+                scale=(0.8, 1.2),
+                shear=15
+            ),
+            T.RandomHorizontalFlip(p=0.5),
+        ])
+
+        # --- 3. Convert to tensor ---
+        to_tensor = T.ToTensor()
+        to_pil = T.ToPILImage()
+        base_tensor = to_tensor(base_crop)
+
+        # --- 4. Generate crops + augmentations ---
+        augmentations = [base_crop]
+        for i in range(5):  # TODO: Move to config
+            aug_tensor = augmentation(base_tensor)
+            aug_image = to_pil(aug_tensor)
+            augmentations.append(aug_image)
+
+        # --- 5. Return payload ---
+        embedding_payload = EmbeddingPayload.from_items(
             augmentations,
-            [f"augmentation_{i}" for i in range(len(augmentations))]  # Tags for each augmentation
+            [f"augmentation_{i}" for i in range(len(augmentations))]
         )
 
         return embedding_payload
