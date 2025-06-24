@@ -13,3 +13,7 @@ description = '''body > div.flex.min-h-screen.flex-col > main > div > div > div:
 
 [scraper_overrides]
 rate_limit = 0.0
+
+[scraper_overrides.patterns]
+collection = "/collections/.+"
+pagination = "/page/\\d+"
