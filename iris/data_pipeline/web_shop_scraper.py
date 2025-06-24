@@ -2,6 +2,7 @@ import re
 import time
 from typing import Set
 from urllib.parse import urljoin, urlparse
+from collections import deque
 from collections.abc import Iterator
 
 
@@ -119,7 +120,7 @@ class WebShopScraper:
 
         return matched_links
 
-    def scrape(self) -> Iterator[Product, list[Image]]:
+    def scrape(self) -> Iterator[tuple[Product, list[Image]]]:
         """
         Crawl and process an entire web shop, yielding structured product data.
 
@@ -129,47 +130,44 @@ class WebShopScraper:
         For each valid product page encountered, it yields a Product instance.
 
         Returns:
-            Iterator[Product, list[Image]]: Streamed products as they are discovered and parsed.
+            Iterator[tuple[Product, list[Image]]]: Streamed products as they are discovered and parsed.
         """
 
-        urls_to_process = {self.shop_config.base_url}
+        urls_to_process = deque([self.shop_config.start_url])
+        seen_urls = {self.shop_config.start_url}
+
         while urls_to_process:
-            url = urls_to_process.pop()
+            url = urls_to_process.popleft()
             url = self._normalize_url(url)
 
-            # Skip if already processed
             if url in self.processed_urls:
                 continue
 
-            # Load the page
             logger.info(f"Scraping page: {url}")
-            
             soup = self.scraper.load_page(url)
             if soup is None:
                 logger.warning(f"Failed to load page {url}. Skipping.")
                 continue
 
-            # Process the page and get all links
             links = self._extract_links(soup)
-            new_links = links - self.processed_urls - urls_to_process
-            urls_to_process.update(new_links)
+            new_links = links - self.processed_urls - seen_urls
+
+            for link in new_links:
+                urls_to_process.append(link)
+                seen_urls.add(link)
+
             logger.info(
                 f"\tLinks: {len(links)}\n"
                 f"\tNew links: {len(new_links)}\n"
                 f"\tLinks to process: {len(urls_to_process)}"
             )
 
-            # Process product URLs
             if self._is_product_url(url):
                 product, images = self.product_handler.process_product_page(url, soup)
-
                 if product is not None:
                     yield product, images
 
-            # Mark this URL as processed
             self.processed_urls.add(url)
-
-            # Rate limiting
             time.sleep(self.shop_config.scraper_config.rate_limit)
 
         logger.info(f"Scraping completed. Processed {len(self.processed_urls)} URLs.")
