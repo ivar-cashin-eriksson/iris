@@ -105,7 +105,7 @@ class QdrantManager:
         vectors: Sequence[VectorType],
         payloads: Sequence[PayloadType],
         ids: Sequence[int] | None = None
-    ) -> bool:
+    ) -> None:
         """
         Insert or update points in a collection.
 
@@ -113,31 +113,24 @@ class QdrantManager:
             collection_name (str): Name of the collection
             vectors (List[np.ndarray]): List of vectors to insert
             payloads (List[dict]): List of payloads for each vector
-            ids (Optional[List[int]]): Optional list of IDs for the points
-
-        Returns:
-            bool: True if operation was successful
+            ids (list[int] None): Optional list of IDs for the points
         """
-        try:
-            if ids is None:
-                ids = list(range(len(vectors)))
+        if ids is None:
+            ids = list(range(len(vectors)))
 
-            points = [
-                PointStruct(
-                    id=id,
-                    vector=vector,
-                    payload=payload
-                )
-                for id, vector, payload in zip(ids, vectors, payloads)
-            ]
-
-            self._client.upsert(
-                collection_name=collection_name,
-                points=points
+        points = [
+            PointStruct(
+                id=id,
+                vector=vector,
+                payload=payload
             )
-            return True
-        except Exception:
-            return False
+            for id, vector, payload in zip(ids, vectors, payloads)
+        ]
+
+        self._client.upsert(
+            collection_name=collection_name,
+            points=points
+        )
 
     def search_points(
         self,

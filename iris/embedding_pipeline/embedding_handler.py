@@ -1,95 +1,134 @@
-import open_clip
 import torch
-import torchvision.transforms as T
-from PIL import Image
-import numpy as np
+from typing import Self
 
-from iris.config.embedding_pipeline_config_manager import ClipConfig
+from iris.embedding_pipeline.embedder import Embedder
+from iris.data_pipeline.qdrant_manager import QdrantManager
+from iris.mixins.embeddable import EmbeddableMixin
+from iris.protocols.context_protocols import HasFullContext
 
 class EmbeddingHandler:
-    def __init__(self, config: ClipConfig):
+    def __init__(self, embedder: Embedder, qdrant_manager: QdrantManager):
         """
-        Initialize the EmbeddingHandler with specified CLIP model.
+        Initialize the EmbeddingHandler with embedder and qdrant manager.
         
         Args:
-            config (ClipConfig): Clip configuration instance
+            embedder (Embedder): An instance of the Embedder class for 
+                                 generating embeddings.
+            qdrant_manager (QdrantManager): An instance of the QdrantManager 
+                                            for sotring embeddings.
         """
-        self.config = config
-        self.model, _, self.preprocess = open_clip.create_model_and_transforms(
-            self.config.model_name,
-            pretrained=self.config.pretrained,
-            device=self.config.device
+        self.embedder = embedder
+        self.qdrant_manager = qdrant_manager
+
+    def __enter__(self) -> Self:
+        self.qdrant_manager.__enter__()
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb) -> None:
+        self.qdrant_manager.__exit__(exc_type, exc_val, exc_tb)
+
+    def get_embedding(
+        self, 
+        item: EmbeddableMixin, 
+        context: HasFullContext, 
+        qdrant_collection: str
+    ) -> torch.Tensor:
+        """
+        Get embedding for an embeddable.
+        
+        Args:
+            item (EmbeddableMixin): An instance of an embeddable item.
+            
+        Returns:
+            torch.Tensor: Item embedding tensor.
+        """
+        
+        # TODO: Ensure embeddable has a hash
+        self.qdrant_manager.create_collection(
+            qdrant_collection, 
+            self.qdrant_manager.qdrant_config.embedding_dim
         )
-        self.model.eval()
+        stored_records = self.qdrant_manager.retrieve_points(
+            qdrant_collection, 
+            [item.hash]
+        )
+        if len(stored_records) > 0:
+            record = stored_records[0]
+            return torch.tensor(record.vector, dtype=torch.float32) 
+        
+        embedding = self.embedder.embed(item, context)
+        self.qdrant_manager.upsert_points(
+            qdrant_collection, 
+            [embedding],
+            payloads=[{"type": item.type, "hash": item.hash}],
+            ids=[item.hash]
+        )
 
-    def get_embedding(self, image: Image.Image) -> torch.Tensor:
+        return embedding
+    
+    def get_embeddings(
+        self, 
+        items: list[EmbeddableMixin], 
+        context: HasFullContext, 
+        qdrant_collection: str
+    ) -> list[torch.Tensor]:
         """
-        Generate embeddings for a single PIL image.
+        Get embeddings for a list of embeddables in a batched manner.
+        Note, all items must live in the same collection in qdrant.
         
         Args:
-            image: A PIL Image
+            items (list[EmbeddableMixin]): List of embeddable items.
+            context (HasFullContext): Context for data retreival.
+            qdrant_collection (str): Qdrant collection name for fetching embeddings.
             
         Returns:
-            torch.Tensor: Image embeddings
+            list[torch.Tensor]: List of item embedding tensors.
         """
-        if not isinstance(image, Image.Image):
-            raise ValueError("Input must be a PIL Image.")
-        
-        processed_image = self.preprocess(image).unsqueeze(0).to(self.config.device)
-        
-        with torch.no_grad():
-            image_features = self.model.encode_image(processed_image)
-            image_features /= image_features.norm(dim=-1, keepdim=True)
-            
-        return image_features.cpu()[0]  # Return as tensor, removing batch dimension
+        # Ensure collection exists
+        self.qdrant_manager.create_collection(
+            qdrant_collection, 
+            self.qdrant_manager.qdrant_config.embedding_dim
+        )
 
-    def get_augmented_embedding(self, img: Image.Image, num_augmentations: int = 5) -> torch.Tensor:
-        """
-        Generate embeddings by averaging original and augmented versions of the image.
+        # Get all item hashes
+        item_hashes = [item.hash for item in items]
         
-        Uses data augmentation techniques including random affine transformations and
-        horizontal flips to create multiple versions of the image. The embeddings
-        for all versions are averaged to create a more robust representation.
+        # Try to get stored embeddings from Qdrant
+        stored_records = self.qdrant_manager.retrieve_points(
+            qdrant_collection, 
+            item_hashes
+        )
+        
+        # Create a mapping of hash to stored embedding
+        stored_embeddings = {
+            record.payload['hash']: torch.tensor(record.vector, dtype=torch.float32)
+            for record in stored_records
+        }
+        
+        # Identify items that need new embeddings
+        missing_items = [
+            item for item in items 
+            if item.hash not in stored_embeddings
+        ]
+        
+        # Compute new embeddings in batch if needed
+        if missing_items:
+            new_embeddings = self.embedder.embed_batch(missing_items, context)
+            
+            # Save new embeddings to Qdrant
+            self.qdrant_manager.upsert_points(
+                qdrant_collection,
+                new_embeddings,
+                payloads=[{"type": item.type, "hash": item.hash} for item in missing_items],
+                ids=[item.hash for item in missing_items]
+            )
+            
+            # Add new embeddings to stored mapping
+            stored_embeddings.update(zip(
+                [item.hash for item in missing_items],
+                new_embeddings
+            ))
+        
+        # Return embeddings in original order
+        return [stored_embeddings[item.hash] for item in items]
 
-        Args:
-            img (Image.Image): A PIL Image to generate embeddings for
-            num_augmentations (int, optional): Number of augmented versions to create. Defaults to 5.
-            
-        Returns:
-            torch.Tensor: Averaged embedding tensor for all image versions
-            
-        Raises:
-            ValueError: If input is not a PIL Image
-        """
-        # Define augmentations
-        augmentation = T.Compose([
-            T.RandomAffine(
-                degrees=30,
-                translate=(0.1, 0.1),
-                scale=(0.8, 1.2),
-                shear=15
-            ),
-            T.RandomHorizontalFlip(p=0.5),
-        ])
-        
-        # Convert PIL image to tensor for transformations
-        to_tensor = T.ToTensor()
-        to_pil = T.ToPILImage()
-        img_tensor = to_tensor(img)
-        
-        # Get embeddings for original and augmented versions
-        embeddings = [self.get_embedding(img)]
-        
-        # Get augmented versions
-        for _ in range(num_augmentations):
-            # Apply augmentation
-            aug_tensor = augmentation(img_tensor)
-            aug_image = to_pil(aug_tensor)
-            
-            # Get embedding
-            aug_embedding = self.get_embedding(aug_image)
-            embeddings.append(aug_embedding)
-        
-        # Stack and average all embeddings
-        stacked = torch.stack(embeddings)
-        return stacked.mean(dim=0)
