@@ -1,0 +1,18 @@
+# Pas Normal Studios configuration
+shop_name = "arket"
+base_url = "https://www.arket.com/en-dk/"
+start_url = "https://www.arket.com/en-dk/product/linen-silk-jumper-dusty-turquoise-1142169013/"
+
+[image_selectors]
+images = '''#__next div.snap-y.snap-mandatory img'''
+
+[metadata_selectors]
+title = '''#__next h1.text-18.uppercase'''
+description = '''div.line-clamp-2.text-16'''
+color = '''#__next main section div.mb-24 button span.uppercase.text-16'''
+
+[scraper_overrides]
+rate_limit = 0.0
+
+[scraper_overrides.patterns]
+product = "/product/.+"

@@ -1,0 +1,17 @@
+# Pas Normal Studios configuration
+shop_name = "cos"
+base_url = "https://www.cos.com/en-dk"
+start_url = "https://www.cos.com/en-dk/men/menswear/trousers/tapered/product/belted-tapered-cotton-trousers-navy-1282014002#product-description"
+
+[image_selectors]
+images = '''#main-block-wrapper > div.blocks.flex.flex-col.pb-\[--pdp-sticky-details-height\].lg\:pb-0.pt-\[var\(--header-height\)\].lg\:pt-0 > div.overflow-auto.lg\:grid.lg\:grid-cols-12.lg\:gap-x-4.lg\:overflow-visible.lg\:px-4 > div.flex-1.flex-shrink-0.overflow-auto.lg\:flex-0.lg\:z-30.lg\:col-span-8.lg\:h-\[calc\(100vh_-_var\(--header-height\)\)\].lg\:min-h-full.lg\:overflow-visible.lg\:col-start-1.lg\:row-start-1.lg\:-ml-5 img'''
+
+[metadata_selectors]
+title = '''h1[data-testid="product-name"]'''
+description = '''[id="disclosure-:r13:"]'''
+
+[scraper_overrides]
+rate_limit = 0.0
+
+[scraper_overrides.patterns]
+product = "/product/.+"
