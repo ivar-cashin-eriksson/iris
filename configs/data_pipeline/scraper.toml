@@ -7,5 +7,3 @@ wait_for_selector = "img"
 
 [patterns]
 product = "/products/.+"
-collection = "/collections/.+"
-pagination = "/page/\\d+"
