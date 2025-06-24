@@ -1,5 +1,6 @@
 from pathlib import Path
 from typing import Dict
+import time
 
 from bs4 import BeautifulSoup
 from selenium import webdriver
@@ -42,9 +43,28 @@ class BaseScraper:
         chrome_options.add_argument("--disable-gpu")
         chrome_options.add_argument("--disable-extensions")
         chrome_options.add_argument("--disable-software-rasterizer")
+        
+        # Add browser-like properties
+        chrome_options.add_argument("--window-size=1920,1080")
+        chrome_options.add_argument("--start-maximized")
+        chrome_options.add_argument(f"user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
+        
+        # Add additional headers
+        chrome_options.add_argument("--disable-blink-features=AutomationControlled")
+        chrome_options.add_experimental_option("excludeSwitches", ["enable-automation"])
+        chrome_options.add_experimental_option("useAutomationExtension", False)
 
         service = Service(ChromeDriverManager().install())
         self.driver: WebDriver = webdriver.Chrome(service=service, options=chrome_options)
+        
+        # Execute CDP commands to prevent detection
+        self.driver.execute_cdp_cmd("Page.addScriptToEvaluateOnNewDocument", {
+            "source": """
+                Object.defineProperty(navigator, 'webdriver', {
+                    get: () => undefined
+                })
+            """
+        })
 
     def __del__(self):
         """
@@ -69,11 +89,19 @@ class BaseScraper:
         self.driver.get(url)
 
         try:
+            # Wait for initial content
             WebDriverWait(self.driver, self.scraper_config.timeout).until(
                 EC.presence_of_element_located(
                     (By.CSS_SELECTOR, self.scraper_config.wait_for_selector)
                 )
             )
+            
+            # Scroll to load all images
+            self._scroll_to_load_images()
+            
+            # Wait additional time for dynamic content
+            self.driver.implicitly_wait(2)
+            
             return BeautifulSoup(self.driver.page_source, "html.parser")
         except TimeoutException:
             logger.warning(f"Timeout waiting for element on page: {url}")
@@ -81,6 +109,28 @@ class BaseScraper:
             logger.warning(f"Selenium error while loading page {url}: {e}")
 
         return None
+
+    def _scroll_to_load_images(self):
+        """
+        Scroll the page to trigger lazy loading of images.
+        """
+        last_height = self.driver.execute_script("return document.body.scrollHeight")
+        
+        while True:
+            # Scroll to bottom
+            self.driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
+            
+            # Wait for potential new content
+            time.sleep(1)
+            
+            # Calculate new scroll height
+            new_height = self.driver.execute_script("return document.body.scrollHeight")
+            
+            # Break if no more new content
+            if new_height == last_height:
+                break
+                
+            last_height = new_height
 
     def extract_data(
         self, soup: BeautifulSoup, selectors: Dict[str, str]
