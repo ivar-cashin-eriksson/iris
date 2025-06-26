@@ -14,8 +14,8 @@ export class UIComponents {
         link.href = detection.product_predictions[0].product_url;
         
         // Position the link using the normalized coordinates (0-1) from the API
-        link.style.left = `${detection.point.x * 100}%`;
-        link.style.top = `${detection.point.y * 100}%`;
+        link.style.left = `${detection.point[0] * 100}%`;
+        link.style.top = `${detection.point[1] * 100}%`;
 
         // Make sure the link takes the click event
         link.addEventListener('click', e => {

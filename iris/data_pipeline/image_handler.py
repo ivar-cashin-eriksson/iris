@@ -2,6 +2,7 @@ from abc import ABC
 from bs4 import BeautifulSoup
 
 from iris.models.image import Image
+from iris.utils.utils import normalize_image_url
 
 
 class ImageHandler(ABC):
@@ -44,13 +45,18 @@ class ImageHandler(ABC):
             img_element (BeautifulSoup): A single <img> tag parsed from the page.
 
         Returns:
-            tuple[str, str] | None: A tuple containing the image URL and a DOM location
+            tuple[str, str] | None: A tuple containing the normalized image URL and a DOM location
             string describing the element's position in the page structure.
         """
         src = img_element.get("src")
+        if not src:
+            return None
+            
+        # Normalize the URL to remove query parameters
+        normalized_src = normalize_image_url(src)
         dom_location = cls._get_element_path(img_element)
 
-        return (src, dom_location)
+        return (normalized_src, dom_location)
 
     @classmethod
     def extract_image_urls(
@@ -70,7 +76,7 @@ class ImageHandler(ABC):
             image_selector (str): CSS selector to locate image containers or image tags.
 
         Returns:
-            tuple[list[str], list[str]]: A pair of lists — one with image URLs,
+            tuple[list[str], list[str]]: A pair of lists — one with normalized image URLs,
             and one with their corresponding DOM location descriptions.
     """
         image_urls = []
@@ -102,14 +108,15 @@ class ImageHandler(ABC):
         Extract image elements from a parsed HTML document and convert them into Image objects.
 
         This method uses a CSS selector to locate <img> elements or equivalent, extracts their URLs
-        and DOM locations, and creates Image instances for each.
+        and DOM locations, and creates Image instances for each. URLs are automatically normalized
+        to remove query parameters for consistent storage.
 
         Args:
             soup (BeautifulSoup): The parsed HTML content (soup object).
             image_selector (str): A CSS selector targeting image elements to extract.
 
         Returns:
-            list[Image]: List of Image instances of extracted images.
+            list[Image]: List of Image instances with normalized URLs.
         """
         urls, dom_locations = cls.extract_image_urls(soup, image_selector)
         images = []
