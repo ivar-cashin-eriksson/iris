@@ -1,8 +1,7 @@
 export const config = {
     api: {
         baseUrl: 'http://localhost:5000',
-        dbName: 'iris_dev_nikolaj_storm'
-        // dbName: 'iris_dev_pas_normal_studios'
+        dbName: 'placeholder_db_name'
     },
     ui: {
         initialLoadDelay: 500,

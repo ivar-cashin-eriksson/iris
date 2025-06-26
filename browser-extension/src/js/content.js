@@ -13,7 +13,7 @@ class DataManager {
     }
 
     try {
-      const url = new URL(`${config.api.baseUrl}/get-detections-all-predictions`);
+      const url = new URL(`${config.api.baseUrl}/get-detections`);
       url.searchParams.append('url', imageUrl);
       url.searchParams.append('db_name', config.api.dbName);
 
