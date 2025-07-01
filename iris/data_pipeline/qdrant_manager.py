@@ -1,5 +1,5 @@
 from collections.abc import Sequence
-from typing import TypeAlias, Any, Self
+from typing import TypeAlias, Self
 
 import numpy as np
 from numpy.typing import NDArray
@@ -17,7 +17,7 @@ from iris.config.data_pipeline_config_manager import QdrantConfig
 
 # Type aliases
 VectorType: TypeAlias = NDArray[np.float32]
-PayloadType: TypeAlias = dict[str, Any]
+PayloadType: TypeAlias = dict[str, any]
 
 
 class QdrantManager:

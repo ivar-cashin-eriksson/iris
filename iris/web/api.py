@@ -1,5 +1,3 @@
-from typing import Any
-
 from fastapi import FastAPI, Query
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -30,7 +28,7 @@ mongodb_manager = MongoDBManager(config_manager.mongodb_config)
 async def _get_base_response(
         url: str, 
         db_name: str
-    ) -> tuple[list[Localization], dict[str, Any]]:
+    ) -> tuple[list[Localization], dict[str, any]]:
     """
     Helper function to get base response structure and image document
 
@@ -79,7 +77,7 @@ async def _get_base_response(
 async def check_url(
         url: str = Query(...), 
         db_name: str = Query(...)
-    ) -> dict[str, Any]:
+    ) -> dict[str, any]:
     """
     Check if a URL exists in the database and return product detections if any.
 

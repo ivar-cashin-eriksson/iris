@@ -1,5 +1,4 @@
-import datetime
-from typing import Any, TypeAlias, Self
+from typing import TypeAlias, Self
 from collections.abc import Iterable
 
 from pymongo import MongoClient
@@ -11,8 +10,8 @@ from iris.models.document import Document
 from iris.models.factory import factory as document_factory
 
 # Type aliases
-DocumentType: TypeAlias = dict[str, Any]
-QueryType: TypeAlias = dict[str, Any]
+DocumentType: TypeAlias = dict[str, any]
+QueryType: TypeAlias = dict[str, any]
 
 
 class MongoDBManager:
