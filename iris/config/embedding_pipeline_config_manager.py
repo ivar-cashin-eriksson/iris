@@ -3,7 +3,6 @@ Configuration manager for embedding pipeline.
 """
 
 from dataclasses import dataclass, asdict
-from pathlib import Path
 
 from iris.config.config_manager import BaseConfig, ConfigManager
 from iris.config.data_pipeline_config_manager import ShopConfig
