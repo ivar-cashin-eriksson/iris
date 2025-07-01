@@ -1,5 +1,5 @@
 # Base configuration
-environment = "dev"  # Current environment (dev, test, prod) 
+environment = "demo"  # Current environment (dev, test, prod) 
 device = "cpu"  # Preferred device to compute on (cuda, cpu, or mps)
 
 # Config file paths
