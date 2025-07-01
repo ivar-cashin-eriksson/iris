@@ -1,10 +1,10 @@
 # iris 👁️🌈🧠
 
-An intelligent product recognition system that detects and identifies products in e-commerce images using advanced computer vision. The system uses SAM2 or YOLOS for precise localization and CLIP for semantic understanding of products.
+An intelligent product recognition system that detects and identifies products in e-commerce images using advanced computer vision and semantic understanding.
 
 ## 🌟 Features
 
-- 🔍 Automatic product detection in images using SAM
+- 🔍 Automatic product detection and analysis in images
 - 🎯 Smart product linking using CLIP embeddings
 - 🌐 Chrome extension for real-time product link display from pre-detected products
 - 💾 MongoDB-based data persistence
@@ -25,7 +25,7 @@ iris/
 │   ├── utils/                   # Helper functions
 │   └── web/                     # FastAPI server
 │
-└── test/                        # Test notebooks
+└── notebooks/                   # Test notebooks and pipeline
 ```
 
 ## 🚀 Getting Started
@@ -50,17 +50,11 @@ cd iris
 pip install -e .
 ```
 
-3. Download SAM checkpoint:
-```bash
-mkdir -p checkpoints
-wget https://dl.fbaipublicfiles.com/segment_anything/sam_vit_b_01ec64.pth -P checkpoints/
-```
-
-4. Set up shop configs:
+3. Set up shop configs:
    - Copy example shop config from `configs/data_pipeline/shops/`
    - Update with your shop's details
 
-5. Set up the extension:
+4. Set up the extension:
 ```bash
 cd browser-extension
 npm install
@@ -92,7 +86,7 @@ Explore the notebooks in `test/`:
 ## 💡 Core Components
 
 ### Object Localization Pipeline
-Uses Meta's Segment Anything Model or YOLOS to detect and localise products in images with high precision.
+Detects and localizes products in images with high precision using computer vision techniques.
 
 ### Embedding Pipeline
 Leverages OpenAI's CLIP model to understand product semantics and create meaningful embeddings for similarity matching.
@@ -105,9 +99,9 @@ Adds interactive product links to e-commerce images in real-time by matching the
 
 ## 📝 License
 
-This software is proprietary and confidential. All rights reserved. See the [LICENSE](LICENSE) file for details.
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
 ## 🙏 Acknowledgments
 
-- [Segment Anything Model (SAM)](https://segment-anything.com/) by Meta AI Research
 - [CLIP](https://openai.com/blog/clip/) by OpenAI
+- Computer vision research community
