@@ -8,69 +8,6 @@ import numpy as np
 from PIL import Image
 
 
-def load_image(
-    path: Union[str, Path],
-    target_format: str = "numpy",
-    ensure_rgb: bool = False
-) -> Union[np.ndarray, Image.Image]:
-    """
-    Load an image from a file and convert it to the desired format.
-    
-    Args:
-        path: Path to the image file
-        target_format: Desired output format ("numpy" or "pil")
-        ensure_rgb: Whether to ensure the output is RGB (converts grayscale/RGBA)
-        
-    Returns:
-        Image in the requested format (numpy array or PIL Image)
-        
-    Raises:
-        ValueError: If target_format is not "numpy" or "pil"
-    """
-    if target_format not in ["numpy", "pil"]:
-        raise ValueError('target_format must be either "numpy" or "pil"')
-        
-    # Load image with PIL (handles all common formats)
-    pil_image = Image.open(path)
-    
-    return convert_image_format(pil_image, target_format=target_format, ensure_rgb=ensure_rgb)
-
-
-def save_image(
-    image: Union[np.ndarray, Image.Image],
-    path: Union[str, Path],
-    format: str | None = None
-) -> Path:
-    """
-    Save an image to a file, automatically determining the format from the file extension.
-    
-    Args:
-        image: Image to save (numpy array or PIL Image)
-        path: Path where to save the image
-        format: Optional format override (e.g., "JPEG", "PNG"). If None, inferred from path.
-        
-    Returns:
-        Path: The path where the image was saved
-        
-    Raises:
-        ValueError: If image format is not supported
-        OSError: If the image could not be saved
-    """
-    path = Path(path)
-    
-    # Convert to PIL Image for saving
-    image = convert_image_format(image, target_format="pil")
-    
-    # Determine format from extension if not specified
-    if format is None:
-        format = path.suffix[1:].upper()
-    
-    # Save the image
-    image.save(path, format=format)
-    
-    return path
-
-
 def convert_image_format(
     image: Union[np.ndarray, Image.Image],
     target_format: str = "numpy",
