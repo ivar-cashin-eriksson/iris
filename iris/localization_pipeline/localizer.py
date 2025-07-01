@@ -1,20 +1,21 @@
 import torch
 import numpy as np
 from PIL import Image as PILImage
-from typing import Any
 from ultralytics import YOLO
 from transformers import AutoProcessor, YolosForObjectDetection, YolosImageProcessor
 from segment_anything import sam_model_registry, SamAutomaticMaskGenerator
 from abc import ABC, abstractmethod
-import hashlib
 
-from iris.config.localization_pipeline_config_manager import LocalizationModelConfig, SAM2Config, YoloConfig, YolosConfig
+from iris.config.localization_pipeline_config_manager import (
+    LocalizationModelConfig, 
+    SAM2Config, 
+    YoloConfig, 
+    YolosConfig
+)
 from iris.mixins.renderable import RenderableMixin
-from iris.models.localization import Localization
 from iris.protocols.context_protocols import HasImageContext
 from iris.utils.machine_utils import get_device
 from iris.utils.image_utils import convert_mask_format, convert_image_format
-from iris.data_pipeline.mongodb_manager import MongoDBManager
 
 
 class LocalizationModel(ABC):
@@ -24,7 +25,7 @@ class LocalizationModel(ABC):
     def localize_objects(
         self, 
         image: np.ndarray
-    ) -> list[dict[str, Any]]:
+    ) -> list[dict[str, any]]:
         """
         Perform object localization on an image.
         
@@ -32,15 +33,15 @@ class LocalizationModel(ABC):
             image: Input image as numpy array in RGB format.
                         
         Returns:
-            list[dict[str, Any]]: List of dictionaries containing localization 
+            list[dict[str, any]]: List of dictionaries containing localization 
                                   information in relative coordinates.
         """
         ...
 
     def post_process_masks(
         self, 
-        masks: list[dict[str, Any]]
-    ) -> list[dict[str, Any]]:
+        masks: list[dict[str, any]]
+    ) -> list[dict[str, any]]:
         """
         Post-process masks to ensure they are valuable for downstream tasks.
         
@@ -55,9 +56,9 @@ class LocalizationModel(ABC):
 
     def _to_relative_coordinates(
         self, 
-        localization_data: dict[str, Any], 
+        localization_data: dict[str, any], 
         shape: tuple[int, ...]
-    ) -> dict[str, Any]:
+    ) -> dict[str, any]:
         """
         Convert coordinates to relative format.
         
@@ -105,7 +106,7 @@ class YoloModel(BoundingBoxModel):
     def localize_objects(
         self, 
         image: np.ndarray
-    ) -> list[dict[str, Any]]:
+    ) -> list[dict[str, any]]:
         """
         Perform object localization on an image.
         
@@ -113,7 +114,7 @@ class YoloModel(BoundingBoxModel):
             image: Input image as numpy array in RGB format.
                         
         Returns:
-            list[dict[str, Any]]: List of dictionaries containing localization 
+            list[dict[str, any]]: List of dictionaries containing localization 
                                   information in relative coordinates.
         """
 
@@ -164,7 +165,7 @@ class YolosModel(BoundingBoxModel):
     def localize_objects(
         self, 
         image: np.ndarray
-    ) -> list[dict[str, Any]]:
+    ) -> list[dict[str, any]]:
         """
         Perform object localization on an image.
         
@@ -172,7 +173,7 @@ class YolosModel(BoundingBoxModel):
             image: Input image as numpy array in RGB format.
                         
         Returns:
-            list[dict[str, Any]]: List of dictionaries containing localization 
+            list[dict[str, any]]: List of dictionaries containing localization 
                                   information in relative coordinates.
         """
         # Convert numpy array to PIL Image for YOLOS processor
@@ -239,7 +240,7 @@ class SAM2Model(LocalizationModel):
     def localize_objects(
         self, 
         image: np.ndarray
-    ) -> list[dict[str, Any]]:
+    ) -> list[dict[str, any]]:
         """
         Perform object localization on an image.
         
@@ -247,7 +248,7 @@ class SAM2Model(LocalizationModel):
             image: Input image as numpy array in RGB format.
                         
         Returns:
-            list[dict[str, Any]]: List of dictionaries containing localization 
+            list[dict[str, any]]: List of dictionaries containing localization 
                                   information in relative coordinates.
         """
         masks = self.mask_generator.generate(image)
@@ -272,9 +273,9 @@ class SAM2Model(LocalizationModel):
 
     def _to_relative_coordinates(
         self, 
-        localization_data: dict[str, Any], 
+        localization_data: dict[str, any], 
         shape: tuple[int, ...]
-    ) -> dict[str, Any]:
+    ) -> dict[str, any]:
         """Convert SAM2 coordinates to relative format."""
         height, width = shape[:2]
         result = super()._to_relative_coordinates(
@@ -370,7 +371,7 @@ class Localizer:
         image: RenderableMixin,
         context: HasImageContext,
         post_process: bool = True,
-    ) -> list[dict[str, Any]]:
+    ) -> list[dict[str, any]]:
         """
         Object localize an image and generate bounding boxes.
         

@@ -1,7 +1,6 @@
-import torch
 from pathlib import Path
 from datetime import datetime, timezone
-from typing import TypeAlias, Any
+from typing import TypeAlias
 
 DataType: TypeAlias = dict[str, any]
 
