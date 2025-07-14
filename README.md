@@ -54,6 +54,13 @@ pip install -e .
    - Copy example shop config from `configs/data_pipeline/shops/`
    - Update with your shop's details
 
+### Run Pipeline
+Run all pipeline steps in `notebooks/pipeline`. Each step performs one step of the process to create product links for a webshop.
+- Web scraping
+- Product image localization (product detection)
+- Embedding
+- Product linking
+
 ## 🎮 Development
 
 ### API Server
